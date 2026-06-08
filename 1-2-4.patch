@@ -1,0 +1,64 @@
+diff --git a/src/main/java/org/apache/commons/imaging/formats/jpeg/JpegImageParser.java b/src/main/java/org/apache/commons/imaging/formats/jpeg/JpegImageParser.java
+index dc7cf05b..38524d7a 100644
+--- a/src/main/java/org/apache/commons/imaging/formats/jpeg/JpegImageParser.java
++++ b/src/main/java/org/apache/commons/imaging/formats/jpeg/JpegImageParser.java
+@@ -235,6 +235,17 @@ public class JpegImageParser extends AbstractImageParser<JpegImagingParameters>
+         return new JpegImagingParameters();
+     }
+ 
++    @Override
++    public void writeImage(final BufferedImage src, final OutputStream os, final JpegImagingParameters params)
++            throws ImagingException, IOException {
++        float quality = JpegImagingParameters.DEFAULT_QUALITY;
++        if (params != null) {
++            quality = params.getQuality();
++        }
++        final JpegImageWriter writer = new JpegImageWriter(quality);
++        writer.writeImage(src, os, null, null);
++    }
++
+     /**
+      * Gets EXIF metadata.
+      *
+diff --git a/src/main/java/org/apache/commons/imaging/formats/jpeg/JpegImagingParameters.java b/src/main/java/org/apache/commons/imaging/formats/jpeg/JpegImagingParameters.java
+index 718d25ce..e4208497 100644
+--- a/src/main/java/org/apache/commons/imaging/formats/jpeg/JpegImagingParameters.java
++++ b/src/main/java/org/apache/commons/imaging/formats/jpeg/JpegImagingParameters.java
+@@ -24,9 +24,37 @@ import org.apache.commons.imaging.common.XmpImagingParameters;
+  */
+ public class JpegImagingParameters extends XmpImagingParameters<JpegImagingParameters> {
+ 
++    /** Default JPEG quality: {@value}. */
++    public static final float DEFAULT_QUALITY = 0.75f;
++
++    private float quality = DEFAULT_QUALITY;
++
+     /**
+      * Constructs a new instance.
+      */
+     public JpegImagingParameters() {
+     }
++
++    /**
++     * Sets the JPEG compression quality.
++     *
++     * @param quality the quality value, ranging from 0.0 (worst) to 1.0 (best)
++     * @return this instance
++     */
++    public JpegImagingParameters setQuality(final float quality) {
++        if (quality < 0.0f || quality > 1.0f) {
++            throw new IllegalArgumentException("Quality must be between 0.0 and 1.0");
++        }
++        this.quality = quality;
++        return this;
++    }
++
++    /**
++     * Gets the JPEG compression quality.
++     *
++     * @return the quality value
++     */
++    public float getQuality() {
++        return quality;
++    }
+ }

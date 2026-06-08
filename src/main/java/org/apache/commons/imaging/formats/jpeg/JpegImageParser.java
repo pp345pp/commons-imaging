@@ -235,6 +235,17 @@ public class JpegImageParser extends AbstractImageParser<JpegImagingParameters> 
         return new JpegImagingParameters();
     }
 
+    @Override
+    public void writeImage(final BufferedImage src, final OutputStream os, final JpegImagingParameters params)
+            throws ImagingException, IOException {
+        float quality = JpegImagingParameters.DEFAULT_QUALITY;
+        if (params != null) {
+            quality = params.getQuality();
+        }
+        final JpegImageWriter writer = new JpegImageWriter(quality);
+        writer.writeImage(src, os, null, null);
+    }
+
     /**
      * Gets EXIF metadata.
      *

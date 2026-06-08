@@ -24,9 +24,37 @@ import org.apache.commons.imaging.common.XmpImagingParameters;
  */
 public class JpegImagingParameters extends XmpImagingParameters<JpegImagingParameters> {
 
+    /** Default JPEG quality: {@value}. */
+    public static final float DEFAULT_QUALITY = 0.75f;
+
+    private float quality = DEFAULT_QUALITY;
+
     /**
      * Constructs a new instance.
      */
     public JpegImagingParameters() {
+    }
+
+    /**
+     * Sets the JPEG compression quality.
+     *
+     * @param quality the quality value, ranging from 0.0 (worst) to 1.0 (best)
+     * @return this instance
+     */
+    public JpegImagingParameters setQuality(final float quality) {
+        if (quality < 0.0f || quality > 1.0f) {
+            throw new IllegalArgumentException("Quality must be between 0.0 and 1.0");
+        }
+        this.quality = quality;
+        return this;
+    }
+
+    /**
+     * Gets the JPEG compression quality.
+     *
+     * @return the quality value
+     */
+    public float getQuality() {
+        return quality;
     }
 }
