@@ -18,6 +18,8 @@ package org.apache.commons.imaging.formats.webp;
 
 import org.apache.commons.imaging.common.XmpImagingParameters;
 
+import org.apache.commons.imaging.formats.tiff.write.TiffOutputSet;
+
 /**
  * WebP format parameters.
  *
@@ -25,10 +27,52 @@ import org.apache.commons.imaging.common.XmpImagingParameters;
  */
 public class WebPImagingParameters extends XmpImagingParameters<WebPImagingParameters> {
 
+    private int compressionLevel = 9;
+    private TiffOutputSet exif;
+
     /**
      * Constructs a new instance.
      */
     public WebPImagingParameters() {
         // Default constructor
+    }
+
+    /**
+     * Gets the EXIF metadata.
+     *
+     * @return the EXIF metadata.
+     */
+    public TiffOutputSet getExif() {
+        return exif;
+    }
+
+    /**
+     * Sets the EXIF metadata.
+     *
+     * @param exif the EXIF metadata.
+     */
+    public void setExif(TiffOutputSet exif) {
+        this.exif = exif;
+    }
+
+    /**
+     * Gets the compression level (1-9).
+     *
+     * @return the compression level.
+     */
+    public int getCompressionLevel() {
+        return compressionLevel;
+    }
+
+    /**
+     * Sets the compression level (1-9).
+     *
+     * @param compressionLevel the compression level (1-9).
+     */
+    public void setCompressionLevel(int compressionLevel) {
+        if (compressionLevel < 1 || compressionLevel > 9) {
+            throw new IllegalArgumentException("Compression level must be between 1 and 9");
+        }
+        this.compressionLevel = compressionLevel;
     }
 }

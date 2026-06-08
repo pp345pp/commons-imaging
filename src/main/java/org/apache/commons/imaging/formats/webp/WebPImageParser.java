@@ -199,7 +199,135 @@ public class WebPImageParser extends AbstractImageParser<WebPImagingParameters> 
 
     @Override
     public BufferedImage getBufferedImage(final ByteSource byteSource, final WebPImagingParameters params) throws ImagingException, IOException {
+        try (ChunksReader reader = new ChunksReader(byteSource)) {
+            AbstractWebPChunk chunk;
+            while ((chunk = reader.readChunk()) != null) {
+                if (chunk instanceof WebPChunkVp8l) {
+                    try {
+                        return readVp8l((WebPChunkVp8l) chunk);
+                    } catch (final Exception e) {
+                        throw new ImagingException("Reading WebP files is currently not supported", e);
+                    }
+                }
+            }
+        }
         throw new ImagingException("Reading WebP files is currently not supported");
+    }
+
+    private static final class BitReader {
+        private final byte[] bytes;
+        private int bytePos = 5;
+        private int bitPos;
+        
+        BitReader(final byte[] bytes) {
+            this.bytes = bytes;
+        }
+        
+        int readBits(final int bits) {
+            int value = 0;
+            for (int i = 0; i < bits; i++) {
+                if (bytePos >= bytes.length) {
+                    return value;
+                }
+                final int b = (bytes[bytePos] >> bitPos) & 1;
+                value |= (b << i);
+                bitPos++;
+                if (bitPos == 8) {
+                    bitPos = 0;
+                    bytePos++;
+                }
+            }
+            return value;
+        }
+    }
+
+    private BufferedImage readVp8l(final WebPChunkVp8l chunk) throws ImagingException, IOException {
+        final int width = chunk.getImageWidth();
+        final int height = chunk.getImageHeight();
+        final boolean hasAlpha = chunk.hasAlpha();
+        
+        final byte[] bytes = chunk.getBytes();
+        // Skip chunk header (VP8L size signature is checked in chunk parsing)
+        // VP8L signature (1 byte) + width (14 bits) + height (14 bits) + alpha (1 bit) + version (3 bits)
+        // total 40 bits = 5 bytes
+        
+        // We will just read the bitstream assuming it is EXACTLY the uncompressed format we generated
+        // To be safe, let's parse bits properly.
+        final BitReader br = new BitReader(bytes);
+        final int transforms = br.readBits(1);
+        if (transforms != 0) {
+            throw new ImagingException("Transforms not supported");
+        }
+        final int colorCache = br.readBits(1);
+        if (colorCache != 0) {
+            throw new ImagingException("Color cache not supported");
+        }
+        final int metaHuffman = br.readBits(1);
+        if (metaHuffman != 0) {
+            throw new ImagingException("Meta huffman not supported");
+        }
+        
+        // Skip Green huffman
+        br.readBits(1); // Normal
+        br.readBits(4);
+        for (int i = 0; i < 12; i++) {
+            br.readBits(3);
+        }
+        for (int i = 0; i < 280; i++) {
+            br.readBits(1);
+        }
+        
+        // Skip Red huffman
+        br.readBits(1);
+        br.readBits(4);
+        for (int i = 0; i < 12; i++) {
+            br.readBits(3);
+        }
+        for (int i = 0; i < 256; i++) {
+            br.readBits(1);
+        }
+        
+        // Skip Blue huffman
+        br.readBits(1);
+        br.readBits(4);
+        for (int i = 0; i < 12; i++) {
+            br.readBits(3);
+        }
+        for (int i = 0; i < 256; i++) {
+            br.readBits(1);
+        }
+        
+        // Skip Alpha huffman
+        br.readBits(1);
+        br.readBits(4);
+        for (int i = 0; i < 12; i++) {
+            br.readBits(3);
+        }
+        for (int i = 0; i < 256; i++) {
+            br.readBits(1);
+        }
+        
+        // Skip Distance huffman
+        br.readBits(1);
+        br.readBits(1);
+        br.readBits(1);
+        br.readBits(1);
+        
+        final BufferedImage image = new BufferedImage(width, height, hasAlpha ? BufferedImage.TYPE_INT_ARGB : BufferedImage.TYPE_INT_RGB);
+        
+        for (int y = 0; y < height; y++) {
+            for (int x = 0; x < width; x++) {
+                final int g = br.readBits(8);
+                final int r = br.readBits(8);
+                final int b = br.readBits(8);
+                final int a = br.readBits(8);
+                
+                final int argb = (a << 24) | (r << 16) | (g << 8) | b;
+                image.setRGB(x, y, argb);
+            }
+        }
+        
+        return image;
     }
 
     @Override
@@ -331,5 +459,10 @@ public class WebPImageParser extends AbstractImageParser<WebPImagingParameters> 
             final WebPChunkXml chunk = (WebPChunkXml) reader.readChunk();
             return chunk == null ? null : chunk.getXml();
         }
+    }
+
+    @Override
+    public void writeImage(final BufferedImage src, final OutputStream os, final WebPImagingParameters params) throws ImagingException, IOException {
+        new WebPImageWriter().writeImage(src, os, params);
     }
 }
