@@ -1000,4 +1000,9 @@ public class JpegImageParser extends AbstractImageParser<JpegImagingParameters> 
 
         return result;
     }
+
+    @Override
+    public void writeImage(final BufferedImage src, final OutputStream os, final JpegImagingParameters params) throws ImagingException, IOException {
+        new JpegImageWriter().writeImage(src, os, params);
+    }
 }

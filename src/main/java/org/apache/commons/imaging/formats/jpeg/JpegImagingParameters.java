@@ -16,6 +16,7 @@
 package org.apache.commons.imaging.formats.jpeg;
 
 import org.apache.commons.imaging.common.XmpImagingParameters;
+import org.apache.commons.imaging.formats.tiff.write.TiffOutputSet;
 
 /**
  * JPEG format parameters.
@@ -24,9 +25,40 @@ import org.apache.commons.imaging.common.XmpImagingParameters;
  */
 public class JpegImagingParameters extends XmpImagingParameters<JpegImagingParameters> {
 
+    private TiffOutputSet exif;
+    private byte[] iccProfile;
+    private int quality = 75; // 1-100
+
     /**
      * Constructs a new instance.
      */
     public JpegImagingParameters() {
+    }
+
+    public TiffOutputSet getExif() {
+        return exif;
+    }
+
+    public void setExif(final TiffOutputSet exif) {
+        this.exif = exif;
+    }
+
+    public byte[] getIccProfile() {
+        return iccProfile;
+    }
+
+    public void setIccProfile(final byte[] iccProfile) {
+        this.iccProfile = iccProfile;
+    }
+
+    public int getQuality() {
+        return quality;
+    }
+
+    public void setQuality(final int quality) {
+        if (quality < 1 || quality > 100) {
+            throw new IllegalArgumentException("Quality must be between 1 and 100");
+        }
+        this.quality = quality;
     }
 }
