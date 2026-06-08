@@ -15,6 +15,9 @@
 
 package org.apache.commons.imaging.formats.jpeg;
 
+import java.io.File;
+
+import org.apache.commons.imaging.bytesource.ByteSource;
 import org.apache.commons.imaging.common.XmpImagingParameters;
 
 /**
@@ -24,9 +27,58 @@ import org.apache.commons.imaging.common.XmpImagingParameters;
  */
 public class JpegImagingParameters extends XmpImagingParameters<JpegImagingParameters> {
 
+    private int quality = 75;
+    private byte[] exif;
+    private byte[] iccProfile;
+    private ByteSource metadataSource;
+
     /**
      * Constructs a new instance.
      */
     public JpegImagingParameters() {
+    }
+
+    public byte[] getExif() {
+        return exif == null ? null : exif.clone();
+    }
+
+    public byte[] getIccProfile() {
+        return iccProfile == null ? null : iccProfile.clone();
+    }
+
+    public ByteSource getMetadataSource() {
+        return metadataSource;
+    }
+
+    public int getQuality() {
+        return quality;
+    }
+
+    public JpegImagingParameters setExif(final byte[] exif) {
+        this.exif = exif == null ? null : exif.clone();
+        return asThis();
+    }
+
+    public JpegImagingParameters setIccProfile(final byte[] iccProfile) {
+        this.iccProfile = iccProfile == null ? null : iccProfile.clone();
+        return asThis();
+    }
+
+    public JpegImagingParameters setMetadataSource(final ByteSource metadataSource) {
+        this.metadataSource = metadataSource;
+        return asThis();
+    }
+
+    public JpegImagingParameters setMetadataSource(final byte[] metadataSource) {
+        return setMetadataSource(metadataSource == null ? null : ByteSource.array(metadataSource));
+    }
+
+    public JpegImagingParameters setMetadataSource(final File metadataSource) {
+        return setMetadataSource(metadataSource == null ? null : ByteSource.file(metadataSource));
+    }
+
+    public JpegImagingParameters setQuality(final int quality) {
+        this.quality = quality;
+        return asThis();
     }
 }

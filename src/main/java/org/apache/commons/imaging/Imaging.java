@@ -895,6 +895,14 @@ public final class Imaging {
         }
     }
 
+    public static <T extends ImagingParameters<T>> void writeImage(final BufferedImage src, final File file, final ImageFormat format, final T params)
+            throws ImagingException, IOException {
+        try (FileOutputStream fos = new FileOutputStream(file);
+                BufferedOutputStream os = new BufferedOutputStream(fos)) {
+            writeImage(src, os, format, params);
+        }
+    }
+
     /**
      * Writes the content of a BufferedImage to an OutputStream using the specified image format.
      *
@@ -920,6 +928,16 @@ public final class Imaging {
         imageParser.writeImage(src, outputStream, null);
     }
 
+    public static <T extends ImagingParameters<T>> void writeImage(final BufferedImage src, final OutputStream outputStream, final ImageFormat format,
+            final T params) throws ImagingException, IOException {
+        Objects.requireNonNull(src, "src");
+        Objects.requireNonNull(outputStream, "outputStream");
+        Objects.requireNonNull(format, "format");
+
+        final AbstractImageParser<T> imageParser = ImageParserFactory.getImageParser(format);
+        imageParser.writeImage(src, outputStream, params);
+    }
+
     /**
      * Writes the content of a BufferedImage to a byte array using the specified image format.
      *
@@ -939,6 +957,14 @@ public final class Imaging {
     public static byte[] writeImageToBytes(final BufferedImage src, final ImageFormat format) throws ImagingException, IOException {
         try (ByteArrayOutputStream os = new ByteArrayOutputStream()) {
             writeImage(src, os, format);
+            return os.toByteArray();
+        }
+    }
+
+    public static <T extends ImagingParameters<T>> byte[] writeImageToBytes(final BufferedImage src, final ImageFormat format, final T params)
+            throws ImagingException, IOException {
+        try (ByteArrayOutputStream os = new ByteArrayOutputStream()) {
+            writeImage(src, os, format, params);
             return os.toByteArray();
         }
     }

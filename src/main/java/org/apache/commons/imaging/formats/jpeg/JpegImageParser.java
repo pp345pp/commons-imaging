@@ -929,6 +929,7 @@ public class JpegImageParser extends AbstractImageParser<JpegImagingParameters> 
     public List<AbstractSegment> readSegments(final ByteSource byteSource, final int[] markers, final boolean returnAfterFirst)
             throws ImagingException, IOException {
         final List<AbstractSegment> result = new ArrayList<>();
+
         final int[] sofnSegments = {
                 // kJFIFMarker,
                 JpegConstants.SOF0_MARKER, JpegConstants.SOF1_MARKER, JpegConstants.SOF2_MARKER, JpegConstants.SOF3_MARKER, JpegConstants.SOF5_MARKER,
@@ -999,5 +1000,10 @@ public class JpegImageParser extends AbstractImageParser<JpegImagingParameters> 
         new JpegUtils().traverseJfif(byteSource, visitor);
 
         return result;
+    }
+
+    @Override
+    public void writeImage(final BufferedImage src, final java.io.OutputStream os, final JpegImagingParameters params) throws ImagingException, IOException {
+        new JpegImageWriter().writeImage(src, os, params);
     }
 }

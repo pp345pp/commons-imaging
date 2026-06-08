@@ -1,0 +1,146 @@
+diff --git a/src/main/java/org/apache/commons/imaging/Imaging.java b/src/main/java/org/apache/commons/imaging/Imaging.java
+index 5fb0a5ab..1fc2555f 100644
+--- a/src/main/java/org/apache/commons/imaging/Imaging.java
++++ b/src/main/java/org/apache/commons/imaging/Imaging.java
+@@ -895,6 +895,14 @@ public final class Imaging {
+         }
+     }
+ 
++    public static <T extends ImagingParameters<T>> void writeImage(final BufferedImage src, final File file, final ImageFormat format, final T params)
++            throws ImagingException, IOException {
++        try (FileOutputStream fos = new FileOutputStream(file);
++                BufferedOutputStream os = new BufferedOutputStream(fos)) {
++            writeImage(src, os, format, params);
++        }
++    }
++
+     /**
+      * Writes the content of a BufferedImage to an OutputStream using the specified image format.
+      *
+@@ -920,6 +928,16 @@ public final class Imaging {
+         imageParser.writeImage(src, outputStream, null);
+     }
+ 
++    public static <T extends ImagingParameters<T>> void writeImage(final BufferedImage src, final OutputStream outputStream, final ImageFormat format,
++            final T params) throws ImagingException, IOException {
++        Objects.requireNonNull(src, "src");
++        Objects.requireNonNull(outputStream, "outputStream");
++        Objects.requireNonNull(format, "format");
++
++        final AbstractImageParser<T> imageParser = ImageParserFactory.getImageParser(format);
++        imageParser.writeImage(src, outputStream, params);
++    }
++
+     /**
+      * Writes the content of a BufferedImage to a byte array using the specified image format.
+      *
+@@ -943,6 +961,14 @@ public final class Imaging {
+         }
+     }
+ 
++    public static <T extends ImagingParameters<T>> byte[] writeImageToBytes(final BufferedImage src, final ImageFormat format, final T params)
++            throws ImagingException, IOException {
++        try (ByteArrayOutputStream os = new ByteArrayOutputStream()) {
++            writeImage(src, os, format, params);
++            return os.toByteArray();
++        }
++    }
++
+     private Imaging() {
+         // Instances cannot be created
+     }
+diff --git a/src/main/java/org/apache/commons/imaging/formats/jpeg/JpegImageParser.java b/src/main/java/org/apache/commons/imaging/formats/jpeg/JpegImageParser.java
+index dc7cf05b..bf072337 100644
+--- a/src/main/java/org/apache/commons/imaging/formats/jpeg/JpegImageParser.java
++++ b/src/main/java/org/apache/commons/imaging/formats/jpeg/JpegImageParser.java
+@@ -929,6 +929,7 @@ public class JpegImageParser extends AbstractImageParser<JpegImagingParameters>
+     public List<AbstractSegment> readSegments(final ByteSource byteSource, final int[] markers, final boolean returnAfterFirst)
+             throws ImagingException, IOException {
+         final List<AbstractSegment> result = new ArrayList<>();
++
+         final int[] sofnSegments = {
+                 // kJFIFMarker,
+                 JpegConstants.SOF0_MARKER, JpegConstants.SOF1_MARKER, JpegConstants.SOF2_MARKER, JpegConstants.SOF3_MARKER, JpegConstants.SOF5_MARKER,
+@@ -1000,4 +1001,9 @@ public class JpegImageParser extends AbstractImageParser<JpegImagingParameters>
+ 
+         return result;
+     }
++
++    @Override
++    public void writeImage(final BufferedImage src, final java.io.OutputStream os, final JpegImagingParameters params) throws ImagingException, IOException {
++        new JpegImageWriter().writeImage(src, os, params);
++    }
+ }
+diff --git a/src/main/java/org/apache/commons/imaging/formats/jpeg/JpegImagingParameters.java b/src/main/java/org/apache/commons/imaging/formats/jpeg/JpegImagingParameters.java
+index 718d25ce..5924071d 100644
+--- a/src/main/java/org/apache/commons/imaging/formats/jpeg/JpegImagingParameters.java
++++ b/src/main/java/org/apache/commons/imaging/formats/jpeg/JpegImagingParameters.java
+@@ -15,6 +15,9 @@
+ 
+ package org.apache.commons.imaging.formats.jpeg;
+ 
++import java.io.File;
++
++import org.apache.commons.imaging.bytesource.ByteSource;
+ import org.apache.commons.imaging.common.XmpImagingParameters;
+ 
+ /**
+@@ -24,9 +27,58 @@ import org.apache.commons.imaging.common.XmpImagingParameters;
+  */
+ public class JpegImagingParameters extends XmpImagingParameters<JpegImagingParameters> {
+ 
++    private int quality = 75;
++    private byte[] exif;
++    private byte[] iccProfile;
++    private ByteSource metadataSource;
++
+     /**
+      * Constructs a new instance.
+      */
+     public JpegImagingParameters() {
+     }
++
++    public byte[] getExif() {
++        return exif == null ? null : exif.clone();
++    }
++
++    public byte[] getIccProfile() {
++        return iccProfile == null ? null : iccProfile.clone();
++    }
++
++    public ByteSource getMetadataSource() {
++        return metadataSource;
++    }
++
++    public int getQuality() {
++        return quality;
++    }
++
++    public JpegImagingParameters setExif(final byte[] exif) {
++        this.exif = exif == null ? null : exif.clone();
++        return asThis();
++    }
++
++    public JpegImagingParameters setIccProfile(final byte[] iccProfile) {
++        this.iccProfile = iccProfile == null ? null : iccProfile.clone();
++        return asThis();
++    }
++
++    public JpegImagingParameters setMetadataSource(final ByteSource metadataSource) {
++        this.metadataSource = metadataSource;
++        return asThis();
++    }
++
++    public JpegImagingParameters setMetadataSource(final byte[] metadataSource) {
++        return setMetadataSource(metadataSource == null ? null : ByteSource.array(metadataSource));
++    }
++
++    public JpegImagingParameters setMetadataSource(final File metadataSource) {
++        return setMetadataSource(metadataSource == null ? null : ByteSource.file(metadataSource));
++    }
++
++    public JpegImagingParameters setQuality(final int quality) {
++        this.quality = quality;
++        return asThis();
++    }
+ }
