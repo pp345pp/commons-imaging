@@ -17,18 +17,36 @@
 package org.apache.commons.imaging.formats.webp;
 
 import org.apache.commons.imaging.common.XmpImagingParameters;
+import org.apache.commons.imaging.formats.tiff.write.TiffOutputSet;
 
-/**
- * WebP format parameters.
- *
- * @since 1.0.0-alpha4
- */
 public class WebPImagingParameters extends XmpImagingParameters<WebPImagingParameters> {
 
-    /**
-     * Constructs a new instance.
-     */
+    private static final int DEFAULT_COMPRESSION_LEVEL = 6;
+
+    private int compressionLevel = DEFAULT_COMPRESSION_LEVEL;
+    private TiffOutputSet outputSet;
+
     public WebPImagingParameters() {
-        // Default constructor
+    }
+
+    public int getCompressionLevel() {
+        return compressionLevel;
+    }
+
+    public TiffOutputSet getOutputSet() {
+        return outputSet;
+    }
+
+    public WebPImagingParameters setCompressionLevel(final int compressionLevel) {
+        if (compressionLevel < 1 || compressionLevel > 9) {
+            throw new IllegalArgumentException("Compression level must be between 1 and 9");
+        }
+        this.compressionLevel = compressionLevel;
+        return asThis();
+    }
+
+    public WebPImagingParameters setOutputSet(final TiffOutputSet outputSet) {
+        this.outputSet = outputSet;
+        return asThis();
     }
 }
