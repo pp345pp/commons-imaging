@@ -1,0 +1,47 @@
+diff --git a/src/main/java/org/apache/commons/imaging/Imaging.java b/src/main/java/org/apache/commons/imaging/Imaging.java
+index 5fb0a5ab..48399fb7 100644
+--- a/src/main/java/org/apache/commons/imaging/Imaging.java
++++ b/src/main/java/org/apache/commons/imaging/Imaging.java
+@@ -36,6 +36,7 @@ import org.apache.commons.imaging.common.ImageMetadata;
+ import org.apache.commons.imaging.common.XmpEmbeddable;
+ import org.apache.commons.imaging.icc.IccProfileInfo;
+ import org.apache.commons.imaging.icc.IccProfileParser;
++import org.apache.commons.imaging.formats.jpeg.JpegImageParser;
+ import org.apache.commons.imaging.internal.ImageParserFactory;
+ import org.apache.commons.lang3.StringUtils;
+ 
+@@ -916,6 +917,11 @@ public final class Imaging {
+         Objects.requireNonNull(outputStream, "outputStream");
+         Objects.requireNonNull(format, "format");
+ 
++        if (format == ImageFormats.JPEG) {
++            new JpegImageParser().writeImage(src, outputStream, null);
++            return;
++        }
++
+         final AbstractImageParser<?> imageParser = ImageParserFactory.getImageParser(format);
+         imageParser.writeImage(src, outputStream, null);
+     }
+diff --git a/src/main/java/org/apache/commons/imaging/formats/jpeg/JpegImageWriter.java b/src/main/java/org/apache/commons/imaging/formats/jpeg/JpegImageWriter.java
+index 61499551..c6759d98 100644
+--- a/src/main/java/org/apache/commons/imaging/formats/jpeg/JpegImageWriter.java
++++ b/src/main/java/org/apache/commons/imaging/formats/jpeg/JpegImageWriter.java
+@@ -9,7 +9,9 @@ import org.apache.commons.imaging.ImagingException;
+ import org.apache.commons.imaging.formats.tiff.write.TiffOutputSet;
+ import org.apache.commons.imaging.formats.tiff.write.TiffImageWriterLossy;
+ 
+-public class JpegImageWriter {
++import org.apache.commons.imaging.AbstractImageWriter;
++
++public class JpegImageWriter implements AbstractImageWriter<JpegImagingParameters> {
+ 
+     private static final int[] ZIGZAG = {
+         0, 1, 5, 6, 14, 15, 27, 28,
+@@ -182,6 +184,7 @@ public class JpegImageWriter {
+         os.write(marker);
+     }
+ 
++    @Override
+     public void writeImage(final BufferedImage src, final OutputStream os, JpegImagingParameters params) throws ImagingException, IOException {
+         if (params == null) {
+             params = new JpegImagingParameters();

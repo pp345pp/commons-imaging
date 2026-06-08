@@ -36,6 +36,7 @@ import org.apache.commons.imaging.common.ImageMetadata;
 import org.apache.commons.imaging.common.XmpEmbeddable;
 import org.apache.commons.imaging.icc.IccProfileInfo;
 import org.apache.commons.imaging.icc.IccProfileParser;
+import org.apache.commons.imaging.formats.jpeg.JpegImageParser;
 import org.apache.commons.imaging.internal.ImageParserFactory;
 import org.apache.commons.lang3.StringUtils;
 
@@ -915,6 +916,11 @@ public final class Imaging {
         Objects.requireNonNull(src, "src");
         Objects.requireNonNull(outputStream, "outputStream");
         Objects.requireNonNull(format, "format");
+
+        if (format == ImageFormats.JPEG) {
+            new JpegImageParser().writeImage(src, outputStream, null);
+            return;
+        }
 
         final AbstractImageParser<?> imageParser = ImageParserFactory.getImageParser(format);
         imageParser.writeImage(src, outputStream, null);

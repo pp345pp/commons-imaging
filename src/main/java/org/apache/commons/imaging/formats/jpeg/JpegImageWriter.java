@@ -9,7 +9,9 @@ import org.apache.commons.imaging.ImagingException;
 import org.apache.commons.imaging.formats.tiff.write.TiffOutputSet;
 import org.apache.commons.imaging.formats.tiff.write.TiffImageWriterLossy;
 
-public class JpegImageWriter {
+import org.apache.commons.imaging.AbstractImageWriter;
+
+public class JpegImageWriter implements AbstractImageWriter<JpegImagingParameters> {
 
     private static final int[] ZIGZAG = {
         0, 1, 5, 6, 14, 15, 27, 28,
@@ -182,6 +184,7 @@ public class JpegImageWriter {
         os.write(marker);
     }
 
+    @Override
     public void writeImage(final BufferedImage src, final OutputStream os, JpegImagingParameters params) throws ImagingException, IOException {
         if (params == null) {
             params = new JpegImagingParameters();
