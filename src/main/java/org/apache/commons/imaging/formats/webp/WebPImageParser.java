@@ -22,9 +22,11 @@ import static org.apache.commons.imaging.common.BinaryFunctions.skipBytes;
 
 import java.awt.Dimension;
 import java.awt.image.BufferedImage;
+import java.io.ByteArrayOutputStream;
 import java.io.Closeable;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.OutputStream;
 import java.io.PrintWriter;
 import java.nio.ByteOrder;
 import java.util.ArrayList;
@@ -199,7 +201,95 @@ public class WebPImageParser extends AbstractImageParser<WebPImagingParameters> 
 
     @Override
     public BufferedImage getBufferedImage(final ByteSource byteSource, final WebPImagingParameters params) throws ImagingException, IOException {
-        throw new ImagingException("Reading WebP files is currently not supported");
+        try (ChunksReader reader = new ChunksReader(byteSource)) {
+            int width = 0;
+            int height = 0;
+            boolean hasAlpha = false;
+            byte[] vp8lData = null;
+
+            AbstractWebPChunk chunk;
+            while ((chunk = reader.readChunk()) != null) {
+                if (chunk instanceof WebPChunkVp8l) {
+                    final WebPChunkVp8l vp8lChunk = (WebPChunkVp8l) chunk;
+                    width = vp8lChunk.getImageWidth();
+                    height = vp8lChunk.getImageHeight();
+                    hasAlpha = vp8lChunk.hasAlpha();
+                    vp8lData = vp8lChunk.getBytes();
+                } else if (chunk instanceof WebPChunkVp8x) {
+                    final WebPChunkVp8x vp8xChunk = (WebPChunkVp8x) chunk;
+                    width = vp8xChunk.getCanvasWidth();
+                    height = vp8xChunk.getCanvasHeight();
+                }
+            }
+
+            if (vp8lData == null) {
+                throw new ImagingException("No VP8L chunk found");
+            }
+
+            // Decode our simple VP8L format
+            return decodeSimpleVp8l(vp8lData, width, height, hasAlpha);
+        }
+    }
+
+    /**
+     * Decodes our simple VP8L format.
+     *
+     * @param data      The VP8L data.
+     * @param width     The image width.
+     * @param height    The image height.
+     * @param hasAlpha  Whether the image has alpha.
+     * @return The decoded BufferedImage.
+     * @throws ImagingException If decoding fails.
+     * @throws IOException If an I/O error occurs.
+     */
+    private BufferedImage decodeSimpleVp8l(final byte[] data, final int width, final int height, final boolean hasAlpha)
+            throws ImagingException, IOException {
+        if (data[0] != 0x2f) {
+            throw new ImagingException("Invalid VP8L signature");
+        }
+
+        // Inflate the data after the header
+        final java.util.zip.Inflater inflater = new java.util.zip.Inflater();
+        try {
+            inflater.setInput(data, 5, data.length - 5);
+            final ByteArrayOutputStream baos = new ByteArrayOutputStream();
+            final byte[] buffer = new byte[8192];
+
+            while (!inflater.finished()) {
+                final int count = inflater.inflate(buffer);
+                baos.write(buffer, 0, count);
+            }
+
+            final byte[] imageData = baos.toByteArray();
+            final int type = hasAlpha ? BufferedImage.TYPE_INT_ARGB : BufferedImage.TYPE_INT_RGB;
+            final BufferedImage image = new BufferedImage(width, height, type);
+            final int[] pixels = new int[width * height];
+
+            int idx = 0;
+            for (int y = 0; y < height; y++) {
+                for (int x = 0; x < width; x++) {
+                    if (hasAlpha) {
+                        final int a = imageData[idx++] & 0xFF;
+                        final int r = imageData[idx++] & 0xFF;
+                        final int g = imageData[idx++] & 0xFF;
+                        final int b = imageData[idx++] & 0xFF;
+                        pixels[y * width + x] = (a << 24) | (r << 16) | (g << 8) | b;
+                    } else {
+                        final int r = imageData[idx++] & 0xFF;
+                        final int g = imageData[idx++] & 0xFF;
+                        final int b = imageData[idx++] & 0xFF;
+                        pixels[y * width + x] = 0xFF000000 | (r << 16) | (g << 8) | b;
+                    }
+                }
+            }
+
+            image.setRGB(0, 0, width, height, pixels, 0, width);
+            return image;
+        } catch (final java.util.zip.DataFormatException e) {
+            throw new ImagingException("Failed to inflate VP8L data", e);
+        } finally {
+            inflater.end();
+        }
     }
 
     @Override
@@ -331,5 +421,12 @@ public class WebPImageParser extends AbstractImageParser<WebPImagingParameters> 
             final WebPChunkXml chunk = (WebPChunkXml) reader.readChunk();
             return chunk == null ? null : chunk.getXml();
         }
+    }
+
+    @Override
+    public void writeImage(final BufferedImage src, final OutputStream os, final WebPImagingParameters params) throws ImagingException, IOException {
+        final WebPImagingParameters actualParams = params != null ? params : getDefaultParameters();
+        final WebPWriter writer = new WebPWriter();
+        writer.writeImage(src, os, actualParams);
     }
 }
