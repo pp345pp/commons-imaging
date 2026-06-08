@@ -25,6 +25,7 @@ import java.awt.image.BufferedImage;
 import java.io.Closeable;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.OutputStream;
 import java.io.PrintWriter;
 import java.nio.ByteOrder;
 import java.util.ArrayList;
@@ -331,5 +332,10 @@ public class WebPImageParser extends AbstractImageParser<WebPImagingParameters> 
             final WebPChunkXml chunk = (WebPChunkXml) reader.readChunk();
             return chunk == null ? null : chunk.getXml();
         }
+    }
+
+    @Override
+    public void writeImage(final BufferedImage src, final OutputStream os, final WebPImagingParameters params) throws ImagingException, IOException {
+        new WebPImageWriter().writeImage(src, os, params);
     }
 }
