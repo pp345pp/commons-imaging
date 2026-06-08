@@ -25,10 +25,56 @@ import org.apache.commons.imaging.common.XmpImagingParameters;
  */
 public class WebPImagingParameters extends XmpImagingParameters<WebPImagingParameters> {
 
+    private int compressionLevel = 4;
+
+    private byte[] exifData;
+
     /**
      * Constructs a new instance.
      */
     public WebPImagingParameters() {
-        // Default constructor
+    }
+
+    /**
+     * Gets the compression level (1-9).
+     *
+     * @return the compression level.
+     */
+    public int getCompressionLevel() {
+        return compressionLevel;
+    }
+
+    /**
+     * Sets the compression level.
+     *
+     * @param compressionLevel the compression level (1-9).
+     * @return this instance.
+     */
+    public WebPImagingParameters setCompressionLevel(final int compressionLevel) {
+        if (compressionLevel < 1 || compressionLevel > 9) {
+            throw new IllegalArgumentException("Compression level must be between 1 and 9");
+        }
+        this.compressionLevel = compressionLevel;
+        return this;
+    }
+
+    /**
+     * Gets the EXIF data.
+     *
+     * @return the EXIF data bytes, or null if not set.
+     */
+    public byte[] getExifData() {
+        return exifData != null ? exifData.clone() : null;
+    }
+
+    /**
+     * Sets the EXIF data.
+     *
+     * @param exifData the EXIF data bytes.
+     * @return this instance.
+     */
+    public WebPImagingParameters setExifData(final byte[] exifData) {
+        this.exifData = exifData != null ? exifData.clone() : null;
+        return this;
     }
 }

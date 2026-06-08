@@ -1,0 +1,304 @@
+diff --git a/src/main/java/org/apache/commons/imaging/formats/webp/WebPImageParser.java b/src/main/java/org/apache/commons/imaging/formats/webp/WebPImageParser.java
+index 0f778dd6..0d8e8395 100644
+--- a/src/main/java/org/apache/commons/imaging/formats/webp/WebPImageParser.java
++++ b/src/main/java/org/apache/commons/imaging/formats/webp/WebPImageParser.java
+@@ -25,6 +25,7 @@ import java.awt.image.BufferedImage;
+ import java.io.Closeable;
+ import java.io.IOException;
+ import java.io.InputStream;
++import java.io.OutputStream;
+ import java.io.PrintWriter;
+ import java.nio.ByteOrder;
+ import java.util.ArrayList;
+@@ -35,6 +36,7 @@ import org.apache.commons.imaging.ImageFormats;
+ import org.apache.commons.imaging.ImageInfo;
+ import org.apache.commons.imaging.ImagingException;
+ import org.apache.commons.imaging.bytesource.ByteSource;
++import org.apache.commons.imaging.common.ImageBuilder;
+ import org.apache.commons.imaging.common.XmpEmbeddable;
+ import org.apache.commons.imaging.common.XmpImagingParameters;
+ import org.apache.commons.imaging.formats.tiff.TiffImageMetadata;
+@@ -199,7 +201,24 @@ public class WebPImageParser extends AbstractImageParser<WebPImagingParameters>
+ 
+     @Override
+     public BufferedImage getBufferedImage(final ByteSource byteSource, final WebPImagingParameters params) throws ImagingException, IOException {
+-        throw new ImagingException("Reading WebP files is currently not supported");
++        try (ChunksReader reader = new ChunksReader(byteSource)) {
++            final AbstractWebPChunk chunk = reader.readChunk();
++            if (chunk instanceof WebPChunkVp8l) {
++                return decodeVP8L((WebPChunkVp8l) chunk);
++            }
++            if (chunk instanceof WebPChunkVp8x) {
++                final WebPChunkVp8x vp8x = (WebPChunkVp8x) chunk;
++                AbstractWebPChunk innerChunk = reader.readChunk();
++                while (innerChunk != null) {
++                    if (innerChunk.getType() == WebPChunkType.VP8L.value) {
++                        return decodeVP8L((WebPChunkVp8l) innerChunk);
++                    }
++                    innerChunk = reader.readChunk();
++                }
++                throw new ImagingException("No VP8L chunk found in extended WebP");
++            }
++            throw new ImagingException("Reading WebP files is currently not supported for this format");
++        }
+     }
+ 
+     @Override
+@@ -332,4 +351,181 @@ public class WebPImageParser extends AbstractImageParser<WebPImagingParameters>
+             return chunk == null ? null : chunk.getXml();
+         }
+     }
++
++    @Override
++    public void writeImage(final BufferedImage src, final OutputStream os, final WebPImagingParameters params)
++            throws ImagingException, IOException {
++        new WebPImageWriter().writeImage(src, os, params);
++    }
++
++    private static BufferedImage decodeVP8L(final WebPChunkVp8l chunk) throws ImagingException {
++        final int width = chunk.getImageWidth();
++        final int height = chunk.getImageHeight();
++        final boolean hasAlpha = chunk.hasAlpha();
++        final byte[] data = chunk.getBytes();
++        final Vp8lBitReader reader = new Vp8lBitReader(data, 5);
++
++        final int isFirstPart = reader.readBits(1);
++        if (isFirstPart != 1) {
++            throw new ImagingException("Expected first part of VP8L image");
++        }
++
++        final int hasTransform = reader.readBits(1);
++        if (hasTransform == 1) {
++            throw new ImagingException("VP8L transforms are not supported");
++        }
++
++        final int colorCacheBits = reader.readBits(4);
++        if (colorCacheBits != 0) {
++            throw new ImagingException("VP8L color cache is not supported");
++        }
++
++        final int numHuffmanCodes = reader.readBits(2) + 1;
++        final int[][] huffmanCodeLengths = new int[numHuffmanCodes][];
++        final int[][] huffmanCodes = new int[numHuffmanCodes][];
++        for (int i = 0; i < numHuffmanCodes; i++) {
++            final int[] lengths = readHuffmanCodeLengths(reader);
++            huffmanCodeLengths[i] = lengths;
++            huffmanCodes[i] = buildCanonicalCodes(lengths);
++        }
++
++        final ImageBuilder imageBuilder = new ImageBuilder(width, height, hasAlpha);
++        final int pixelCount = width * height;
++
++        for (int i = 0; i < pixelCount; i++) {
++            int a = 0xff;
++            if (hasAlpha && numHuffmanCodes >= 4) {
++                a = readHuffmanSymbol(reader, huffmanCodes[3], huffmanCodeLengths[3]);
++            }
++            final int g = readHuffmanSymbol(reader, huffmanCodes[0], huffmanCodeLengths[0]);
++            final int r = readHuffmanSymbol(reader, huffmanCodes[1], huffmanCodeLengths[1]);
++            final int b = readHuffmanSymbol(reader, huffmanCodes[2], huffmanCodeLengths[2]);
++
++            final int argb = (a << 24) | (r << 16) | (g << 8) | b;
++            final int x = i % width;
++            final int y = i / width;
++            imageBuilder.setRgb(x, y, argb);
++        }
++
++        return imageBuilder.getBufferedImage();
++    }
++
++    private static int[] readHuffmanCodeLengths(final Vp8lBitReader reader) throws ImagingException {
++        final int isSimple = reader.readBits(1);
++        if (isSimple == 1) {
++            throw new ImagingException("Simple Huffman codes are not supported");
++        }
++
++        final int numCodeLengthCodes = reader.readBits(4) + 4;
++        final int[] metaCodeLengths = new int[19];
++        for (int i = 0; i < numCodeLengthCodes; i++) {
++            metaCodeLengths[CODE_LENGTH_ORDER[i]] = reader.readBits(3);
++        }
++
++        final int[] metaCodes = buildCanonicalCodes(metaCodeLengths);
++
++        final int[] codeLengths = new int[256];
++        int symbol = 0;
++        while (symbol < 256) {
++            final int code = readHuffmanSymbol(reader, metaCodes, metaCodeLengths);
++            if (code < 16) {
++                codeLengths[symbol++] = code;
++            } else if (code == 16) {
++                final int extra = reader.readBits(2);
++                final int repeat = 3 + extra;
++                final int prev = symbol > 0 ? codeLengths[symbol - 1] : 0;
++                for (int j = 0; j < repeat && symbol < 256; j++) {
++                    codeLengths[symbol++] = prev;
++                }
++            } else if (code == 17) {
++                final int extra = reader.readBits(3);
++                final int repeat = 3 + extra;
++                for (int j = 0; j < repeat && symbol < 256; j++) {
++                    codeLengths[symbol++] = 0;
++                }
++            } else if (code == 18) {
++                final int extra = reader.readBits(7);
++                final int repeat = 11 + extra;
++                for (int j = 0; j < repeat && symbol < 256; j++) {
++                    codeLengths[symbol++] = 0;
++                }
++            }
++        }
++        return codeLengths;
++    }
++
++    private static int[] buildCanonicalCodes(final int[] codeLengths) {
++        final int maxLength = 15;
++        final int[] bitCount = new int[maxLength + 1];
++        for (final int len : codeLengths) {
++            if (len > 0) {
++                bitCount[len]++;
++            }
++        }
++        int code = 0;
++        final int[] nextCode = new int[maxLength + 1];
++        for (int bits = 1; bits <= maxLength; bits++) {
++            code = (code + bitCount[bits - 1]) << 1;
++            nextCode[bits] = code;
++        }
++        final int[] codes = new int[codeLengths.length];
++        for (int i = 0; i < codes.length; i++) {
++            final int len = codeLengths[i];
++            if (len > 0) {
++                codes[i] = nextCode[len]++;
++            }
++        }
++        return codes;
++    }
++
++    private static int readHuffmanSymbol(final Vp8lBitReader reader, final int[] codes, final int[] codeLengths) throws ImagingException {
++        int code = 0;
++        for (int len = 1; len <= 15; len++) {
++            code = (code << 1) | reader.readBits(1);
++            for (int i = 0; i < codeLengths.length; i++) {
++                if (codeLengths[i] == len && codes[i] == code) {
++                    return i;
++                }
++            }
++        }
++        throw new ImagingException("Invalid Huffman code in VP8L bitstream");
++    }
++
++    private static final int[] CODE_LENGTH_ORDER = { 17, 18, 0, 1, 2, 3, 4, 5, 16, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15 };
++
++    private static final class Vp8lBitReader {
++        private final byte[] data;
++        private int bytePos;
++        private int bitPos;
++
++        Vp8lBitReader(final byte[] data, final int offset) {
++            this.data = data;
++            this.bytePos = offset;
++            this.bitPos = 0;
++        }
++
++        int readBits(final int numBits) {
++            int result = 0;
++            int remaining = numBits;
++            int shift = 0;
++            while (remaining > 0) {
++                if (bytePos >= data.length) {
++                    return result;
++                }
++                final int bitsAvailable = 8 - bitPos;
++                final int bitsToRead = Math.min(remaining, bitsAvailable);
++                final int mask = (1 << bitsToRead) - 1;
++                final int value = (data[bytePos] >> bitPos) & mask;
++                result |= value << shift;
++                shift += bitsToRead;
++                bitPos += bitsToRead;
++                remaining -= bitsToRead;
++                if (bitPos == 8) {
++                    bitPos = 0;
++                    bytePos++;
++                }
++            }
++            return result;
++        }
++    }
+ }
+diff --git a/src/main/java/org/apache/commons/imaging/formats/webp/WebPImagingParameters.java b/src/main/java/org/apache/commons/imaging/formats/webp/WebPImagingParameters.java
+index 5c00f485..275bf341 100644
+--- a/src/main/java/org/apache/commons/imaging/formats/webp/WebPImagingParameters.java
++++ b/src/main/java/org/apache/commons/imaging/formats/webp/WebPImagingParameters.java
+@@ -25,10 +25,56 @@ import org.apache.commons.imaging.common.XmpImagingParameters;
+  */
+ public class WebPImagingParameters extends XmpImagingParameters<WebPImagingParameters> {
+ 
++    private int compressionLevel = 4;
++
++    private byte[] exifData;
++
+     /**
+      * Constructs a new instance.
+      */
+     public WebPImagingParameters() {
+-        // Default constructor
++    }
++
++    /**
++     * Gets the compression level (1-9).
++     *
++     * @return the compression level.
++     */
++    public int getCompressionLevel() {
++        return compressionLevel;
++    }
++
++    /**
++     * Sets the compression level.
++     *
++     * @param compressionLevel the compression level (1-9).
++     * @return this instance.
++     */
++    public WebPImagingParameters setCompressionLevel(final int compressionLevel) {
++        if (compressionLevel < 1 || compressionLevel > 9) {
++            throw new IllegalArgumentException("Compression level must be between 1 and 9");
++        }
++        this.compressionLevel = compressionLevel;
++        return this;
++    }
++
++    /**
++     * Gets the EXIF data.
++     *
++     * @return the EXIF data bytes, or null if not set.
++     */
++    public byte[] getExifData() {
++        return exifData != null ? exifData.clone() : null;
++    }
++
++    /**
++     * Sets the EXIF data.
++     *
++     * @param exifData the EXIF data bytes.
++     * @return this instance.
++     */
++    public WebPImagingParameters setExifData(final byte[] exifData) {
++        this.exifData = exifData != null ? exifData.clone() : null;
++        return this;
+     }
+ }
+diff --git a/src/main/java/org/apache/commons/imaging/formats/webp/package-info.java b/src/main/java/org/apache/commons/imaging/formats/webp/package-info.java
+index 64c97219..7ff4db7f 100644
+--- a/src/main/java/org/apache/commons/imaging/formats/webp/package-info.java
++++ b/src/main/java/org/apache/commons/imaging/formats/webp/package-info.java
+@@ -19,8 +19,7 @@
+  * The WebP image format.
+  *
+  * <p>
+- * Currently, it only supports parsing the WebP container format and extracting metadata from image file, but does not support encoding or decoding the content
+- * of the image.
++ * Supports parsing the WebP container format, extracting metadata from image files, and writing VP8L lossless images.
+  * </p>
+  *
+  * @see <a href="https://developers.google.com/speed/webp/docs/riff_container">WebP Container Specification</a>
