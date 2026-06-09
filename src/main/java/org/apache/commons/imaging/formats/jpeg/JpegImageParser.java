@@ -21,6 +21,7 @@ import static org.apache.commons.imaging.common.BinaryFunctions.remainingBytes;
 import java.awt.Dimension;
 import java.awt.image.BufferedImage;
 import java.io.IOException;
+import java.io.OutputStream;
 import java.io.PrintWriter;
 import java.nio.charset.StandardCharsets;
 import java.text.NumberFormat;
@@ -687,6 +688,12 @@ public class JpegImageParser extends AbstractImageParser<JpegImagingParameters> 
     @Override
     public String getName() {
         return "Jpeg-Custom";
+    }
+
+    @Override
+    public void writeImage(final BufferedImage src, final OutputStream os, final JpegImagingParameters params) throws ImagingException, IOException {
+        final JpegImagingParameters writeParams = params != null ? params : new JpegImagingParameters();
+        new JpegImageWriter().writeImage(src, os, writeParams);
     }
 
     /**

@@ -43,7 +43,8 @@ final class Dct {
      * Anyway the best float version stays. 18.5 seconds = 5.4 million transforms per second per core :-)
      */
 
-    private static final float[] DCT_SCALING_FACTORS = { (float) (0.5 / Math.sqrt(2.0)), (float) (0.25 / Math.cos(Math.PI / 16.0)),
+    /** Forward DCT scaling factors. Public for use by encoder. */
+    public static final float[] DCT_SCALING_FACTORS = { (float) (0.5 / Math.sqrt(2.0)), (float) (0.25 / Math.cos(Math.PI / 16.0)),
             (float) (0.25 / Math.cos(2.0 * Math.PI / 16.0)), (float) (0.25 / Math.cos(3.0 * Math.PI / 16.0)), (float) (0.25 / Math.cos(4.0 * Math.PI / 16.0)),
             (float) (0.25 / Math.cos(5.0 * Math.PI / 16.0)), (float) (0.25 / Math.cos(6.0 * Math.PI / 16.0)),
             (float) (0.25 / Math.cos(7.0 * Math.PI / 16.0)), };

@@ -1,0 +1,131 @@
+diff --git a/src/main/java/org/apache/commons/imaging/formats/jpeg/JpegImageParser.java b/src/main/java/org/apache/commons/imaging/formats/jpeg/JpegImageParser.java
+index dc7cf05b..ae77fd76 100644
+--- a/src/main/java/org/apache/commons/imaging/formats/jpeg/JpegImageParser.java
++++ b/src/main/java/org/apache/commons/imaging/formats/jpeg/JpegImageParser.java
+@@ -21,6 +21,7 @@ import static org.apache.commons.imaging.common.BinaryFunctions.remainingBytes;
+ import java.awt.Dimension;
+ import java.awt.image.BufferedImage;
+ import java.io.IOException;
++import java.io.OutputStream;
+ import java.io.PrintWriter;
+ import java.nio.charset.StandardCharsets;
+ import java.text.NumberFormat;
+@@ -689,6 +690,12 @@ public class JpegImageParser extends AbstractImageParser<JpegImagingParameters>
+         return "Jpeg-Custom";
+     }
+ 
++    @Override
++    public void writeImage(final BufferedImage src, final OutputStream os, final JpegImagingParameters params) throws ImagingException, IOException {
++        final JpegImagingParameters writeParams = params != null ? params : new JpegImagingParameters();
++        new JpegImageWriter().writeImage(src, os, writeParams);
++    }
++
+     /**
+      * Gets Photoshop metadata.
+      *
+diff --git a/src/main/java/org/apache/commons/imaging/formats/jpeg/JpegImagingParameters.java b/src/main/java/org/apache/commons/imaging/formats/jpeg/JpegImagingParameters.java
+index 718d25ce..e32cfebd 100644
+--- a/src/main/java/org/apache/commons/imaging/formats/jpeg/JpegImagingParameters.java
++++ b/src/main/java/org/apache/commons/imaging/formats/jpeg/JpegImagingParameters.java
+@@ -24,9 +24,73 @@ import org.apache.commons.imaging.common.XmpImagingParameters;
+  */
+ public class JpegImagingParameters extends XmpImagingParameters<JpegImagingParameters> {
+ 
++    private int compressionQuality = 85;
++    private byte[] exifData;
++    private byte[] iccProfileData;
++
+     /**
+      * Constructs a new instance.
+      */
+     public JpegImagingParameters() {
+     }
++
++    /**
++     * Gets the compression quality (1-100).
++     *
++     * @return the compression quality
++     */
++    public int getCompressionQuality() {
++        return compressionQuality;
++    }
++
++    /**
++     * Sets the compression quality (1-100).
++     *
++     * @param compressionQuality the compression quality
++     * @return this instance
++     */
++    public JpegImagingParameters setCompressionQuality(final int compressionQuality) {
++        this.compressionQuality = Math.max(1, Math.min(100, compressionQuality));
++        return this;
++    }
++
++    /**
++     * Gets the raw EXIF data to embed.
++     *
++     * @return the raw EXIF data or null
++     */
++    public byte[] getExifData() {
++        return exifData != null ? exifData.clone() : null;
++    }
++
++    /**
++     * Sets the raw EXIF data to embed.
++     *
++     * @param exifData the raw EXIF data
++     * @return this instance
++     */
++    public JpegImagingParameters setExifData(final byte[] exifData) {
++        this.exifData = exifData != null ? exifData.clone() : null;
++        return this;
++    }
++
++    /**
++     * Gets the raw ICC profile data to embed.
++     *
++     * @return the raw ICC profile data or null
++     */
++    public byte[] getIccProfileData() {
++        return iccProfileData != null ? iccProfileData.clone() : null;
++    }
++
++    /**
++     * Sets the raw ICC profile data to embed.
++     *
++     * @param iccProfileData the raw ICC profile data
++     * @return this instance
++     */
++    public JpegImagingParameters setIccProfileData(final byte[] iccProfileData) {
++        this.iccProfileData = iccProfileData != null ? iccProfileData.clone() : null;
++        return this;
++    }
+ }
+diff --git a/src/main/java/org/apache/commons/imaging/formats/jpeg/decoder/Dct.java b/src/main/java/org/apache/commons/imaging/formats/jpeg/decoder/Dct.java
+index 5c991269..2cd86192 100644
+--- a/src/main/java/org/apache/commons/imaging/formats/jpeg/decoder/Dct.java
++++ b/src/main/java/org/apache/commons/imaging/formats/jpeg/decoder/Dct.java
+@@ -43,7 +43,8 @@ final class Dct {
+      * Anyway the best float version stays. 18.5 seconds = 5.4 million transforms per second per core :-)
+      */
+ 
+-    private static final float[] DCT_SCALING_FACTORS = { (float) (0.5 / Math.sqrt(2.0)), (float) (0.25 / Math.cos(Math.PI / 16.0)),
++    /** Forward DCT scaling factors. Public for use by encoder. */
++    public static final float[] DCT_SCALING_FACTORS = { (float) (0.5 / Math.sqrt(2.0)), (float) (0.25 / Math.cos(Math.PI / 16.0)),
+             (float) (0.25 / Math.cos(2.0 * Math.PI / 16.0)), (float) (0.25 / Math.cos(3.0 * Math.PI / 16.0)), (float) (0.25 / Math.cos(4.0 * Math.PI / 16.0)),
+             (float) (0.25 / Math.cos(5.0 * Math.PI / 16.0)), (float) (0.25 / Math.cos(6.0 * Math.PI / 16.0)),
+             (float) (0.25 / Math.cos(7.0 * Math.PI / 16.0)), };
+diff --git a/src/main/java/org/apache/commons/imaging/formats/jpeg/decoder/ZigZag.java b/src/main/java/org/apache/commons/imaging/formats/jpeg/decoder/ZigZag.java
+index d4b3d8c5..8cbd00de 100644
+--- a/src/main/java/org/apache/commons/imaging/formats/jpeg/decoder/ZigZag.java
++++ b/src/main/java/org/apache/commons/imaging/formats/jpeg/decoder/ZigZag.java
+@@ -16,7 +16,8 @@
+ package org.apache.commons.imaging.formats.jpeg.decoder;
+ 
+ final class ZigZag {
+-    private static final int[] ZIG_ZAG = { 0, 1, 5, 6, 14, 15, 27, 28, 2, 4, 7, 13, 16, 26, 29, 42, 3, 8, 12, 17, 25, 30, 41, 43, 9, 11, 18, 24, 31, 40, 44, 53,
++    /** Zig-zag reorder table. Public for use by encoder. */
++    public static final int[] ZIG_ZAG = { 0, 1, 5, 6, 14, 15, 27, 28, 2, 4, 7, 13, 16, 26, 29, 42, 3, 8, 12, 17, 25, 30, 41, 43, 9, 11, 18, 24, 31, 40, 44, 53,
+             10, 19, 23, 32, 39, 45, 52, 54, 20, 22, 33, 38, 46, 51, 55, 60, 21, 34, 37, 47, 50, 56, 59, 61, 35, 36, 48, 49, 57, 58, 62, 63 };
+ 
+     public static void blockToZigZag(final int[] block, final int[] zz) {
