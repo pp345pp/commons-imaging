@@ -161,31 +161,24 @@ public class GifImageParser extends AbstractImageParser<GifImagingParameters> im
     }
 
     private List<GifImageData> findAllImageData(final GifImageContents imageContents) throws ImagingException {
-        final List<ImageDescriptor> descriptors = findAllBlocks(imageContents.blocks, IMAGE_SEPARATOR);
+        final List<GifImageData> result = new ArrayList<>();
+        GraphicControlExtension pendingGce = null;
 
-        if (descriptors.isEmpty()) {
+        for (final GifBlock block : imageContents.blocks) {
+            if (block.blockCode == GRAPHIC_CONTROL_EXTENSION) {
+                pendingGce = (GraphicControlExtension) block;
+            } else if (block.blockCode == IMAGE_SEPARATOR) {
+                final ImageDescriptor descriptor = (ImageDescriptor) block;
+                result.add(new GifImageData(descriptor, pendingGce));
+                pendingGce = null;
+            }
+        }
+
+        if (result.isEmpty()) {
             throw new ImagingException("GIF: Couldn't read Image Descriptor");
         }
 
-        final List<GraphicControlExtension> gcExtensions = findAllBlocks(imageContents.blocks, GRAPHIC_CONTROL_EXTENSION);
-
-        if (!gcExtensions.isEmpty() && gcExtensions.size() != descriptors.size()) {
-            throw new ImagingException("GIF: Invalid amount of Graphic Control Extensions");
-        }
-
-        final List<GifImageData> imageData = Allocator.arrayList(descriptors.size());
-        for (int i = 0; i < descriptors.size(); i++) {
-            final ImageDescriptor descriptor = descriptors.get(i);
-            if (descriptor == null) {
-                throw new ImagingException(String.format("GIF: Couldn't read Image Descriptor of image number %d", i));
-            }
-
-            final GraphicControlExtension gce = gcExtensions.isEmpty() ? null : gcExtensions.get(i);
-
-            imageData.add(new GifImageData(descriptor, gce));
-        }
-
-        return imageData;
+        return result;
     }
 
     private GifBlock findBlock(final List<GifBlock> blocks, final int code) {
@@ -198,15 +191,7 @@ public class GifImageParser extends AbstractImageParser<GifImagingParameters> im
     }
 
     private GifImageData findFirstImageData(final GifImageContents imageContents) throws ImagingException {
-        final ImageDescriptor descriptor = (ImageDescriptor) findBlock(imageContents.blocks, IMAGE_SEPARATOR);
-
-        if (descriptor == null) {
-            throw new ImagingException("GIF: Couldn't read Image Descriptor");
-        }
-
-        final GraphicControlExtension gce = (GraphicControlExtension) findBlock(imageContents.blocks, GRAPHIC_CONTROL_EXTENSION);
-
-        return new GifImageData(descriptor, gce);
+        return findAllImageData(imageContents).get(0);
     }
 
     @Override
@@ -475,8 +460,20 @@ public class GifImageParser extends AbstractImageParser<GifImagingParameters> im
         final List<GifImageData> imageData = findAllImageData(imageContents);
         final List<GifImageMetadataItem> metadataItems = Allocator.arrayList(imageData.size());
         for (final GifImageData id : imageData) {
-            final DisposalMethod disposalMethod = createDisposalMethodFromIntValue(id.gce.dispose);
-            metadataItems.add(new GifImageMetadataItem(id.gce.delay, id.descriptor.imageLeftPosition, id.descriptor.imageTopPosition, disposalMethod));
+            final GraphicControlExtension gce = id.gce;
+            final DisposalMethod disposalMethod;
+            final int delay;
+            final int transparentColorIndex;
+            if (gce != null) {
+                disposalMethod = createDisposalMethodFromIntValue(gce.dispose);
+                delay = gce.delay;
+                transparentColorIndex = gce.transparency ? gce.transparentColorIndex : -1;
+            } else {
+                disposalMethod = DisposalMethod.UNSPECIFIED;
+                delay = 0;
+                transparentColorIndex = -1;
+            }
+            metadataItems.add(new GifImageMetadataItem(delay, id.descriptor.imageLeftPosition, id.descriptor.imageTopPosition, disposalMethod, transparentColorIndex));
         }
         return new GifImageMetadata(bhi.logicalScreenWidth, bhi.logicalScreenHeight, metadataItems);
     }

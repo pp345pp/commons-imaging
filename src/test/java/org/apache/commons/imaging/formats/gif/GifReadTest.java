@@ -103,7 +103,7 @@ class GifReadTest extends AbstractGifTest {
     @Test
     void testCreateMetadataWithDisposalMethods() {
         for (final DisposalMethod disposalMethod : DisposalMethod.values()) {
-            final GifImageMetadataItem metadataItem = new GifImageMetadataItem(0, 0, 0, disposalMethod);
+            final GifImageMetadataItem metadataItem = new GifImageMetadataItem(0, 0, 0, disposalMethod, -1);
             assertEquals(disposalMethod, metadataItem.getDisposalMethod());
         }
     }
