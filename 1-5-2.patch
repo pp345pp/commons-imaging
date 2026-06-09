@@ -1,0 +1,15 @@
+diff --git a/src/main/java/org/apache/commons/imaging/icc/IccProfileParser.java b/src/main/java/org/apache/commons/imaging/icc/IccProfileParser.java
+index 74a096db..2a9cf093 100644
+--- a/src/main/java/org/apache/commons/imaging/icc/IccProfileParser.java
++++ b/src/main/java/org/apache/commons/imaging/icc/IccProfileParser.java
+@@ -334,7 +334,9 @@ public class IccProfileParser extends BinaryFileParser {
+         final byte[] data = cis.getCache();
+ 
+         if (data.length < profileSize) {
+-            throw new ImagingException("Couldn't read ICC Profile.");
++            if (LOGGER.isLoggable(Level.WARNING)) {
++                LOGGER.warning("ICC profile size (" + profileSize + ") exceeds data length (" + data.length + "); ignoring length mismatch and continuing.");
++            }
+         }
+ 
+         final IccProfileInfo result = new IccProfileInfo(data, profileSize, cmmTypeSignature, profileVersion, profileDeviceClassSignature, colorSpace,
