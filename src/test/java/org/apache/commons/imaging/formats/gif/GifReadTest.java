@@ -69,6 +69,63 @@ class GifReadTest extends AbstractGifTest {
     }
 
     @ParameterizedTest
+    @MethodSource("animatedImageData")
+    void testAnimatedGifFrameCountAndMetadata(final File imageFile) throws Exception {
+        final List<BufferedImage> images = Imaging.getAllBufferedImages(imageFile);
+        final GifImageMetadata metadata = (GifImageMetadata) Imaging.getMetadata(imageFile);
+
+        assertEquals(metadata.getItems().size(), images.size(),
+                "Number of frames should match metadata items count");
+        assertTrue(images.size() > 1, "Animated GIF should have more than one frame");
+
+        for (int i = 0; i < images.size(); i++) {
+            final BufferedImage image = images.get(i);
+            assertNotNull(image, "Frame " + i + " should not be null");
+
+            final GifImageMetadataItem metadataItem = (GifImageMetadataItem) image.getProperty("gifMetadata");
+            assertNotNull(metadataItem, "Frame " + i + " should have gifMetadata property");
+
+            assertEquals(metadata.getItems().get(i).getDelay(), metadataItem.getDelay(),
+                    "Frame " + i + " delay should match metadata");
+            assertEquals(metadata.getItems().get(i).getDisposalMethod(), metadataItem.getDisposalMethod(),
+                    "Frame " + i + " disposal method should match metadata");
+            assertEquals(metadata.getItems().get(i).getLeftPosition(), metadataItem.getLeftPosition(),
+                    "Frame " + i + " left position should match metadata");
+            assertEquals(metadata.getItems().get(i).getTopPosition(), metadataItem.getTopPosition(),
+                    "Frame " + i + " top position should match metadata");
+        }
+    }
+
+    @ParameterizedTest
+    @MethodSource("animatedImageData")
+    void testAnimatedGifFirstAndLastFramePixelDifference(final File imageFile) throws Exception {
+        final List<BufferedImage> images = Imaging.getAllBufferedImages(imageFile);
+        assertTrue(images.size() > 1, "Should have multiple frames");
+
+        final BufferedImage firstFrame = images.get(0);
+        final BufferedImage lastFrame = images.get(images.size() - 1);
+
+        assertEquals(firstFrame.getWidth(), lastFrame.getWidth(),
+                "First and last frame should have same width");
+        assertEquals(firstFrame.getHeight(), lastFrame.getHeight(),
+                "First and last frame should have same height");
+
+        boolean hasPixelDifference = false;
+        outer:
+        for (int y = 0; y < firstFrame.getHeight(); y++) {
+            for (int x = 0; x < firstFrame.getWidth(); x++) {
+                if (firstFrame.getRGB(x, y) != lastFrame.getRGB(x, y)) {
+                    hasPixelDifference = true;
+                    break outer;
+                }
+            }
+        }
+
+        assertTrue(hasPixelDifference,
+                "First and last frame should have pixel differences in an animated GIF");
+    }
+
+    @ParameterizedTest
     @MethodSource("singleImageData")
     void testBufferedImagesForSingleImageGif(final File imageFile) throws Exception {
         final List<BufferedImage> images = Imaging.getAllBufferedImages(imageFile);

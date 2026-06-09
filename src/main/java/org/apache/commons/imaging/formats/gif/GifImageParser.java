@@ -231,8 +231,16 @@ public class GifImageParser extends AbstractImageParser<GifImagingParameters> im
 
         final List<GifImageData> imageData = findAllImageData(imageContents);
         final List<BufferedImage> result = Allocator.arrayList(imageData.size());
-        for (final GifImageData id : imageData) {
-            result.add(getBufferedImage(id, imageContents.globalColorTable));
+        for (int i = 0; i < imageData.size(); i++) {
+            final GifImageData id = imageData.get(i);
+            final BufferedImage image = getBufferedImage(id, imageContents.globalColorTable);
+            final GifImageMetadataItem metadataItem = new GifImageMetadataItem(
+                    id.gce != null ? id.gce.delay : 0,
+                    id.descriptor.imageLeftPosition,
+                    id.descriptor.imageTopPosition,
+                    id.gce != null ? createDisposalMethodFromIntValue(id.gce.dispose) : DisposalMethod.UNSPECIFIED);
+            image.setProperty("gifMetadata", metadataItem);
+            result.add(image);
         }
         return result;
     }
