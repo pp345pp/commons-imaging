@@ -41,6 +41,8 @@ public class PngImagingParameters extends XmpImagingParameters<PngImagingParamet
 
     private boolean predictorEnabled;
 
+    private int filterMethod = 0;
+
     /**
      * Used in write operations to indicate the Physical Scale - sCAL.
      *
@@ -125,6 +127,15 @@ public class PngImagingParameters extends XmpImagingParameters<PngImagingParamet
     }
 
     /**
+     * Gets the filter method.
+     *
+     * @return the filter method (0~4).
+     */
+    public int getFilterMethod() {
+        return filterMethod;
+    }
+
+    /**
      * Sets the bit depth.
      *
      * @param bitDepth the bit depth.
@@ -189,6 +200,28 @@ public class PngImagingParameters extends XmpImagingParameters<PngImagingParamet
      */
     public PngImagingParameters setTextChunks(final List<? extends AbstractPngText> textChunks) {
         this.textChunks = Collections.unmodifiableList(textChunks);
+        return asThis();
+    }
+
+    /**
+     * Sets the filter method for PNG compression. Valid values are 0~4:
+     * <ul>
+     * <li>0: None</li>
+     * <li>1: Sub</li>
+     * <li>2: Up</li>
+     * <li>3: Average</li>
+     * <li>4: Paeth</li>
+     * </ul>
+     *
+     * @param filterMethod the filter method (0~4).
+     * @return this instance.
+     * @throws IllegalArgumentException if filterMethod is not in range 0~4.
+     */
+    public PngImagingParameters setFilterMethod(final int filterMethod) {
+        if (filterMethod < 0 || filterMethod > 4) {
+            throw new IllegalArgumentException("Filter method must be in range 0~4, but was: " + filterMethod);
+        }
+        this.filterMethod = filterMethod;
         return asThis();
     }
 }

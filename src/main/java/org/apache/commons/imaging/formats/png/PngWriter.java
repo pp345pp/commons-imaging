@@ -361,8 +361,12 @@ public class PngWriter {
         {
             // IHDR must be first
 
+            final int filterMethodValue = params.getFilterMethod();
+            if (filterMethodValue < 0 || filterMethodValue > 4) {
+                throw new ImagingException("Filter method must be in range 0~4, but was: " + filterMethodValue);
+            }
             final byte compressionMethod = PngConstants.COMPRESSION_TYPE_INFLATE_DEFLATE;
-            final byte filterMethod = PngConstants.FILTER_METHOD_ADAPTIVE;
+            final byte filterMethod = (byte) filterMethodValue;
             final InterlaceMethod interlaceMethod = InterlaceMethod.NONE;
 
             final ImageHeader imageHeader = new ImageHeader(width, height, bitDepth, pngColorType, compressionMethod, filterMethod, interlaceMethod);
