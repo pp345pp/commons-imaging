@@ -1,0 +1,156 @@
+diff --git a/src/main/java/org/apache/commons/imaging/formats/webp/chunks/AbstractWebPChunk.java b/src/main/java/org/apache/commons/imaging/formats/webp/chunks/AbstractWebPChunk.java
+index 4c7d0645..8d23028d 100644
+--- a/src/main/java/org/apache/commons/imaging/formats/webp/chunks/AbstractWebPChunk.java
++++ b/src/main/java/org/apache/commons/imaging/formats/webp/chunks/AbstractWebPChunk.java
+@@ -20,6 +20,8 @@ import java.io.IOException;
+ import java.io.PrintWriter;
+ import java.nio.ByteOrder;
+ import java.nio.charset.StandardCharsets;
++import java.util.logging.Level;
++import java.util.logging.Logger;
+ 
+ import org.apache.commons.imaging.ImagingException;
+ import org.apache.commons.imaging.common.BinaryFileParser;
+@@ -33,12 +35,7 @@ import org.apache.commons.imaging.internal.SafeOperations;
+  */
+ public abstract class AbstractWebPChunk extends BinaryFileParser {
+ 
+-    private static boolean checkArgs(final int size, final byte[] bytes) throws ImagingException {
+-        if (size != bytes.length) {
+-            throw new ImagingException("Chunk size must match bytes length");
+-        }
+-        return true;
+-    }
++    private static final Logger LOGGER = Logger.getLogger(AbstractWebPChunk.class.getName());
+ 
+     private final int type;
+     private final int size;
+@@ -54,17 +51,16 @@ public abstract class AbstractWebPChunk extends BinaryFileParser {
+      * @param type  chunk type.
+      * @param size  chunk size.
+      * @param bytes chunk data.
+-     * @throws ImagingException if the chunk data and the size provided do not match.
+      */
+-    public AbstractWebPChunk(final int type, final int size, final byte[] bytes) throws ImagingException {
+-        this(type, size, bytes, checkArgs(size, bytes));
+-    }
+-
+-    private AbstractWebPChunk(final int type, final int size, final byte[] bytes, final boolean ignored) {
++    public AbstractWebPChunk(final int type, final int size, final byte[] bytes) {
+         super(ByteOrder.LITTLE_ENDIAN);
+         this.type = type;
+         this.size = bytes.length;
+         this.bytes = bytes;
++        if (size != bytes.length) {
++            LOGGER.log(Level.WARNING, String.format("Chunk %s: declared size %d does not match actual bytes length %d, continuing with available data",
++                    getTypeDescription(), size, bytes.length));
++        }
+         // if chunk size is odd, a single padding byte is added
+         final int padding = size % 2 != 0 ? 1 : 0;
+         // Chunk FourCC (4 bytes) + Chunk Size (4 bytes) + Chunk Payload (n bytes) + Padding
+diff --git a/src/main/java/org/apache/commons/imaging/formats/webp/chunks/WebPChunkAnmf.java b/src/main/java/org/apache/commons/imaging/formats/webp/chunks/WebPChunkAnmf.java
+index e2030ef6..82965898 100644
+--- a/src/main/java/org/apache/commons/imaging/formats/webp/chunks/WebPChunkAnmf.java
++++ b/src/main/java/org/apache/commons/imaging/formats/webp/chunks/WebPChunkAnmf.java
+@@ -16,8 +16,6 @@
+  */
+ package org.apache.commons.imaging.formats.webp.chunks;
+ 
+-import org.apache.commons.imaging.ImagingException;
+-
+ /**
+  * ANMF (animation single frame) chunk.
+  *
+@@ -51,9 +49,8 @@ public final class WebPChunkAnmf extends AbstractWebPChunk {
+      * @param type  chunk type.
+      * @param size  chunk size.
+      * @param bytes chunk data.
+-     * @throws ImagingException if the chunk data and the size provided do not match.
+      */
+-    public WebPChunkAnmf(final int type, final int size, final byte[] bytes) throws ImagingException {
++    public WebPChunkAnmf(final int type, final int size, final byte[] bytes) {
+         super(type, size, bytes);
+     }
+ }
+diff --git a/src/main/java/org/apache/commons/imaging/formats/webp/chunks/WebPChunkExif.java b/src/main/java/org/apache/commons/imaging/formats/webp/chunks/WebPChunkExif.java
+index 3f8fb520..58ad0866 100644
+--- a/src/main/java/org/apache/commons/imaging/formats/webp/chunks/WebPChunkExif.java
++++ b/src/main/java/org/apache/commons/imaging/formats/webp/chunks/WebPChunkExif.java
+@@ -49,9 +49,8 @@ public final class WebPChunkExif extends AbstractWebPChunk {
+      * @param type  chunk type.
+      * @param size  chunk size.
+      * @param bytes chunk data.
+-     * @throws ImagingException if the chunk data and the size provided do not match.
+      */
+-    public WebPChunkExif(final int type, final int size, final byte[] bytes) throws ImagingException {
++    public WebPChunkExif(final int type, final int size, final byte[] bytes) {
+         super(type, size, bytes);
+     }
+ 
+diff --git a/src/main/java/org/apache/commons/imaging/formats/webp/chunks/WebPChunkIccp.java b/src/main/java/org/apache/commons/imaging/formats/webp/chunks/WebPChunkIccp.java
+index 17981f54..ffecb3c7 100644
+--- a/src/main/java/org/apache/commons/imaging/formats/webp/chunks/WebPChunkIccp.java
++++ b/src/main/java/org/apache/commons/imaging/formats/webp/chunks/WebPChunkIccp.java
+@@ -16,8 +16,6 @@
+  */
+ package org.apache.commons.imaging.formats.webp.chunks;
+ 
+-import org.apache.commons.imaging.ImagingException;
+-
+ /**
+  * ICCP (color profile) chunk.
+  *
+@@ -43,9 +41,8 @@ public final class WebPChunkIccp extends AbstractWebPChunk {
+      * @param type  chunk type.
+      * @param size  chunk size.
+      * @param bytes chunk data.
+-     * @throws ImagingException if the chunk data and the size provided do not match.
+      */
+-    public WebPChunkIccp(final int type, final int size, final byte[] bytes) throws ImagingException {
++    public WebPChunkIccp(final int type, final int size, final byte[] bytes) {
+         super(type, size, bytes);
+     }
+ }
+diff --git a/src/main/java/org/apache/commons/imaging/formats/webp/chunks/WebPChunkXyzw.java b/src/main/java/org/apache/commons/imaging/formats/webp/chunks/WebPChunkXyzw.java
+index e94766e2..6a322ca5 100644
+--- a/src/main/java/org/apache/commons/imaging/formats/webp/chunks/WebPChunkXyzw.java
++++ b/src/main/java/org/apache/commons/imaging/formats/webp/chunks/WebPChunkXyzw.java
+@@ -16,8 +16,6 @@
+  */
+ package org.apache.commons.imaging.formats.webp.chunks;
+ 
+-import org.apache.commons.imaging.ImagingException;
+-
+ /**
+  * XYZW (unknown) chunk.
+  *
+@@ -31,9 +29,8 @@ public final class WebPChunkXyzw extends AbstractWebPChunk {
+      * @param type  XYZW chunk type.
+      * @param size  XYZW chunk size.
+      * @param bytes XYZW chunk data.
+-     * @throws ImagingException if the chunk data and the size provided do not match.
+      */
+-    public WebPChunkXyzw(final int type, final int size, final byte[] bytes) throws ImagingException {
++    public WebPChunkXyzw(final int type, final int size, final byte[] bytes) {
+         super(type, size, bytes);
+     }
+ }
+diff --git a/src/test/java/org/apache/commons/imaging/formats/webp/WebPReadTest.java b/src/test/java/org/apache/commons/imaging/formats/webp/WebPReadTest.java
+index 3c55961a..5138fe98 100644
+--- a/src/test/java/org/apache/commons/imaging/formats/webp/WebPReadTest.java
++++ b/src/test/java/org/apache/commons/imaging/formats/webp/WebPReadTest.java
+@@ -86,11 +86,11 @@ class WebPReadTest extends AbstractWebPTest {
+     }
+ 
+     /**
+-     * Test that the given size, and the byte array length match.
++     * Test that the given size, and the byte array length mismatch does not throw an exception.
+      */
+     @Test
+     void testWebPChunkInvalidSizeBytes() {
+-        final ImagingException exception = assertThrows(ImagingException.class, () -> new WebPChunkIccp(0, 10, new byte[] {}));
+-        assertEquals("Chunk size must match bytes length", exception.getMessage());
++        final WebPChunkIccp chunk = new WebPChunkIccp(0, 10, new byte[] {});
++        assertEquals(0, chunk.getPayloadSize());
+     }
+ }

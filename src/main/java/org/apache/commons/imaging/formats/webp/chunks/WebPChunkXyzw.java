@@ -16,8 +16,6 @@
  */
 package org.apache.commons.imaging.formats.webp.chunks;
 
-import org.apache.commons.imaging.ImagingException;
-
 /**
  * XYZW (unknown) chunk.
  *
@@ -31,9 +29,8 @@ public final class WebPChunkXyzw extends AbstractWebPChunk {
      * @param type  XYZW chunk type.
      * @param size  XYZW chunk size.
      * @param bytes XYZW chunk data.
-     * @throws ImagingException if the chunk data and the size provided do not match.
      */
-    public WebPChunkXyzw(final int type, final int size, final byte[] bytes) throws ImagingException {
+    public WebPChunkXyzw(final int type, final int size, final byte[] bytes) {
         super(type, size, bytes);
     }
 }

@@ -16,8 +16,6 @@
  */
 package org.apache.commons.imaging.formats.webp.chunks;
 
-import org.apache.commons.imaging.ImagingException;
-
 /**
  * ANMF (animation single frame) chunk.
  *
@@ -51,9 +49,8 @@ public final class WebPChunkAnmf extends AbstractWebPChunk {
      * @param type  chunk type.
      * @param size  chunk size.
      * @param bytes chunk data.
-     * @throws ImagingException if the chunk data and the size provided do not match.
      */
-    public WebPChunkAnmf(final int type, final int size, final byte[] bytes) throws ImagingException {
+    public WebPChunkAnmf(final int type, final int size, final byte[] bytes) {
         super(type, size, bytes);
     }
 }

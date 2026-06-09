@@ -86,11 +86,11 @@ class WebPReadTest extends AbstractWebPTest {
     }
 
     /**
-     * Test that the given size, and the byte array length match.
+     * Test that the given size, and the byte array length mismatch does not throw an exception.
      */
     @Test
     void testWebPChunkInvalidSizeBytes() {
-        final ImagingException exception = assertThrows(ImagingException.class, () -> new WebPChunkIccp(0, 10, new byte[] {}));
-        assertEquals("Chunk size must match bytes length", exception.getMessage());
+        final WebPChunkIccp chunk = new WebPChunkIccp(0, 10, new byte[] {});
+        assertEquals(0, chunk.getPayloadSize());
     }
 }

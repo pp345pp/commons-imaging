@@ -49,9 +49,8 @@ public final class WebPChunkExif extends AbstractWebPChunk {
      * @param type  chunk type.
      * @param size  chunk size.
      * @param bytes chunk data.
-     * @throws ImagingException if the chunk data and the size provided do not match.
      */
-    public WebPChunkExif(final int type, final int size, final byte[] bytes) throws ImagingException {
+    public WebPChunkExif(final int type, final int size, final byte[] bytes) {
         super(type, size, bytes);
     }
 

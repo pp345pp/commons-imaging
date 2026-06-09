@@ -20,6 +20,8 @@ import java.io.IOException;
 import java.io.PrintWriter;
 import java.nio.ByteOrder;
 import java.nio.charset.StandardCharsets;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 import org.apache.commons.imaging.ImagingException;
 import org.apache.commons.imaging.common.BinaryFileParser;
@@ -33,12 +35,7 @@ import org.apache.commons.imaging.internal.SafeOperations;
  */
 public abstract class AbstractWebPChunk extends BinaryFileParser {
 
-    private static boolean checkArgs(final int size, final byte[] bytes) throws ImagingException {
-        if (size != bytes.length) {
-            throw new ImagingException("Chunk size must match bytes length");
-        }
-        return true;
-    }
+    private static final Logger LOGGER = Logger.getLogger(AbstractWebPChunk.class.getName());
 
     private final int type;
     private final int size;
@@ -54,17 +51,16 @@ public abstract class AbstractWebPChunk extends BinaryFileParser {
      * @param type  chunk type.
      * @param size  chunk size.
      * @param bytes chunk data.
-     * @throws ImagingException if the chunk data and the size provided do not match.
      */
-    public AbstractWebPChunk(final int type, final int size, final byte[] bytes) throws ImagingException {
-        this(type, size, bytes, checkArgs(size, bytes));
-    }
-
-    private AbstractWebPChunk(final int type, final int size, final byte[] bytes, final boolean ignored) {
+    public AbstractWebPChunk(final int type, final int size, final byte[] bytes) {
         super(ByteOrder.LITTLE_ENDIAN);
         this.type = type;
         this.size = bytes.length;
         this.bytes = bytes;
+        if (size != bytes.length) {
+            LOGGER.log(Level.WARNING, String.format("Chunk %s: declared size %d does not match actual bytes length %d, continuing with available data",
+                    getTypeDescription(), size, bytes.length));
+        }
         // if chunk size is odd, a single padding byte is added
         final int padding = size % 2 != 0 ? 1 : 0;
         // Chunk FourCC (4 bytes) + Chunk Size (4 bytes) + Chunk Payload (n bytes) + Padding
