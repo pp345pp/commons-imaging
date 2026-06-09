@@ -920,6 +920,16 @@ public final class Imaging {
         imageParser.writeImage(src, outputStream, null);
     }
 
+    public static <T extends ImagingParameters<T>> void writeImage(final BufferedImage src, final OutputStream outputStream, final ImageFormat format,
+            final T params) throws ImagingException, IOException {
+        Objects.requireNonNull(src, "src");
+        Objects.requireNonNull(outputStream, "outputStream");
+        Objects.requireNonNull(format, "format");
+
+        final AbstractImageParser<T> imageParser = (AbstractImageParser<T>) ImageParserFactory.getImageParser(format);
+        imageParser.writeImage(src, outputStream, params);
+    }
+
     /**
      * Writes the content of a BufferedImage to a byte array using the specified image format.
      *

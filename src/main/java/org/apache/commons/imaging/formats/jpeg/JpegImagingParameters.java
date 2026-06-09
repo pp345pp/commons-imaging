@@ -24,9 +24,42 @@ import org.apache.commons.imaging.common.XmpImagingParameters;
  */
 public class JpegImagingParameters extends XmpImagingParameters<JpegImagingParameters> {
 
-    /**
-     * Constructs a new instance.
-     */
+    public static final int DEFAULT_QUALITY = 75;
+
+    private int quality = DEFAULT_QUALITY;
+    private byte[] exifData;
+    private byte[] iccProfile;
+
     public JpegImagingParameters() {
+    }
+
+    public int getQuality() {
+        return quality;
+    }
+
+    public JpegImagingParameters setQuality(final int quality) {
+        if (quality < 1 || quality > 100) {
+            throw new IllegalArgumentException("Quality must be between 1 and 100, got: " + quality);
+        }
+        this.quality = quality;
+        return asThis();
+    }
+
+    public byte[] getExifData() {
+        return exifData;
+    }
+
+    public JpegImagingParameters setExifData(final byte[] exifData) {
+        this.exifData = exifData;
+        return asThis();
+    }
+
+    public byte[] getIccProfile() {
+        return iccProfile;
+    }
+
+    public JpegImagingParameters setIccProfile(final byte[] iccProfile) {
+        this.iccProfile = iccProfile;
+        return asThis();
     }
 }

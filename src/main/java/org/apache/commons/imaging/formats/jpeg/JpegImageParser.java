@@ -21,6 +21,7 @@ import static org.apache.commons.imaging.common.BinaryFunctions.remainingBytes;
 import java.awt.Dimension;
 import java.awt.image.BufferedImage;
 import java.io.IOException;
+import java.io.OutputStream;
 import java.io.PrintWriter;
 import java.nio.charset.StandardCharsets;
 import java.text.NumberFormat;
@@ -999,5 +1000,13 @@ public class JpegImageParser extends AbstractImageParser<JpegImagingParameters> 
         new JpegUtils().traverseJfif(byteSource, visitor);
 
         return result;
+    }
+
+    @Override
+    public void writeImage(final BufferedImage src, final OutputStream os, JpegImagingParameters params) throws ImagingException, IOException {
+        if (params == null) {
+            params = new JpegImagingParameters();
+        }
+        new JpegImageWriter().writeImage(src, os, params);
     }
 }

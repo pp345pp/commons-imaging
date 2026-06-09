@@ -1,0 +1,96 @@
+diff --git a/src/main/java/org/apache/commons/imaging/Imaging.java b/src/main/java/org/apache/commons/imaging/Imaging.java
+index 5fb0a5ab..f6786a3c 100644
+--- a/src/main/java/org/apache/commons/imaging/Imaging.java
++++ b/src/main/java/org/apache/commons/imaging/Imaging.java
+@@ -920,6 +920,16 @@ public final class Imaging {
+         imageParser.writeImage(src, outputStream, null);
+     }
+ 
++    public static <T extends ImagingParameters<T>> void writeImage(final BufferedImage src, final OutputStream outputStream, final ImageFormat format,
++            final T params) throws ImagingException, IOException {
++        Objects.requireNonNull(src, "src");
++        Objects.requireNonNull(outputStream, "outputStream");
++        Objects.requireNonNull(format, "format");
++
++        final AbstractImageParser<T> imageParser = (AbstractImageParser<T>) ImageParserFactory.getImageParser(format);
++        imageParser.writeImage(src, outputStream, params);
++    }
++
+     /**
+      * Writes the content of a BufferedImage to a byte array using the specified image format.
+      *
+diff --git a/src/main/java/org/apache/commons/imaging/formats/jpeg/JpegImageParser.java b/src/main/java/org/apache/commons/imaging/formats/jpeg/JpegImageParser.java
+index dc7cf05b..30aa338f 100644
+--- a/src/main/java/org/apache/commons/imaging/formats/jpeg/JpegImageParser.java
++++ b/src/main/java/org/apache/commons/imaging/formats/jpeg/JpegImageParser.java
+@@ -21,6 +21,7 @@ import static org.apache.commons.imaging.common.BinaryFunctions.remainingBytes;
+ import java.awt.Dimension;
+ import java.awt.image.BufferedImage;
+ import java.io.IOException;
++import java.io.OutputStream;
+ import java.io.PrintWriter;
+ import java.nio.charset.StandardCharsets;
+ import java.text.NumberFormat;
+@@ -1000,4 +1001,12 @@ public class JpegImageParser extends AbstractImageParser<JpegImagingParameters>
+ 
+         return result;
+     }
++
++    @Override
++    public void writeImage(final BufferedImage src, final OutputStream os, JpegImagingParameters params) throws ImagingException, IOException {
++        if (params == null) {
++            params = new JpegImagingParameters();
++        }
++        new JpegImageWriter().writeImage(src, os, params);
++    }
+ }
+diff --git a/src/main/java/org/apache/commons/imaging/formats/jpeg/JpegImagingParameters.java b/src/main/java/org/apache/commons/imaging/formats/jpeg/JpegImagingParameters.java
+index 718d25ce..39c192f1 100644
+--- a/src/main/java/org/apache/commons/imaging/formats/jpeg/JpegImagingParameters.java
++++ b/src/main/java/org/apache/commons/imaging/formats/jpeg/JpegImagingParameters.java
+@@ -24,9 +24,42 @@ import org.apache.commons.imaging.common.XmpImagingParameters;
+  */
+ public class JpegImagingParameters extends XmpImagingParameters<JpegImagingParameters> {
+ 
+-    /**
+-     * Constructs a new instance.
+-     */
++    public static final int DEFAULT_QUALITY = 75;
++
++    private int quality = DEFAULT_QUALITY;
++    private byte[] exifData;
++    private byte[] iccProfile;
++
+     public JpegImagingParameters() {
+     }
++
++    public int getQuality() {
++        return quality;
++    }
++
++    public JpegImagingParameters setQuality(final int quality) {
++        if (quality < 1 || quality > 100) {
++            throw new IllegalArgumentException("Quality must be between 1 and 100, got: " + quality);
++        }
++        this.quality = quality;
++        return asThis();
++    }
++
++    public byte[] getExifData() {
++        return exifData;
++    }
++
++    public JpegImagingParameters setExifData(final byte[] exifData) {
++        this.exifData = exifData;
++        return asThis();
++    }
++
++    public byte[] getIccProfile() {
++        return iccProfile;
++    }
++
++    public JpegImagingParameters setIccProfile(final byte[] iccProfile) {
++        this.iccProfile = iccProfile;
++        return asThis();
++    }
+ }
