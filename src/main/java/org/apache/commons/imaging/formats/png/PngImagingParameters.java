@@ -41,6 +41,8 @@ public class PngImagingParameters extends XmpImagingParameters<PngImagingParamet
 
     private boolean predictorEnabled;
 
+    private int filterMethod = PngConstants.FILTER_METHOD_ADAPTIVE;
+
     /**
      * Used in write operations to indicate the Physical Scale - sCAL.
      *
@@ -77,6 +79,15 @@ public class PngImagingParameters extends XmpImagingParameters<PngImagingParamet
      */
     public byte getBitDepth() {
         return bitDepth;
+    }
+
+    /**
+     * Gets the filter method.
+     *
+     * @return the filter method.
+     */
+    public int getFilterMethod() {
+        return filterMethod;
     }
 
     /**
@@ -154,6 +165,17 @@ public class PngImagingParameters extends XmpImagingParameters<PngImagingParamet
      */
     public PngImagingParameters setForceTrueColor(final boolean forceTrueColor) {
         this.forceTrueColor = forceTrueColor;
+        return asThis();
+    }
+
+    /**
+     * Sets the filter method.
+     *
+     * @param filterMethod the filter method.
+     * @return this instance.
+     */
+    public PngImagingParameters setFilterMethod(final int filterMethod) {
+        this.filterMethod = filterMethod;
         return asThis();
     }
 

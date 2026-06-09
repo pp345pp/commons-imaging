@@ -17,6 +17,7 @@
 package org.apache.commons.imaging.formats.png;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.awt.image.BufferedImage;
@@ -25,6 +26,7 @@ import java.io.File;
 import java.io.IOException;
 
 import org.apache.commons.imaging.Imaging;
+import org.apache.commons.imaging.ImagingException;
 import org.apache.commons.imaging.ImagingTestConstants;
 import org.apache.commons.imaging.palette.Palette;
 import org.apache.commons.imaging.palette.PaletteFactory;
@@ -35,6 +37,8 @@ import org.junit.jupiter.api.Test;
  * Tests for class {@link PngWriter}.
  */
 class PngWriterTest extends AbstractPngTest {
+
+    private static final int IHDR_FILTER_METHOD_OFFSET = 27;
 
     // The form of the test set is
     // 0. target file name
@@ -58,6 +62,15 @@ class PngWriterTest extends AbstractPngTest {
     private File getPngFile(final String name) {
         final File pngFolder = new File(ImagingTestConstants.TEST_IMAGE_FOLDER, "png");
         return new File(pngFolder, name);
+    }
+
+    @Test
+    void testInvalidFilterMethod() {
+        final BufferedImage image = new BufferedImage(1, 1, BufferedImage.TYPE_INT_RGB);
+        final PngImagingParameters params = new PngImagingParameters();
+        params.setFilterMethod(5);
+
+        assertThrows(ImagingException.class, () -> getImageBytes(image, params, null));
     }
 
     @Test
@@ -102,5 +115,15 @@ class PngWriterTest extends AbstractPngTest {
             final byte[] palettedBytes = getImageBytes(image, params, factory);
             assertEquals(colorCount, countColors(palettedBytes), filePath);
         }
+    }
+
+    @Test
+    void testWritesConfiguredFilterMethodToIhdr() throws IOException {
+        final BufferedImage image = new BufferedImage(1, 1, BufferedImage.TYPE_INT_RGB);
+        final PngImagingParameters params = new PngImagingParameters();
+        params.setFilterMethod(4);
+
+        final byte[] bytes = getImageBytes(image, params, null);
+        assertEquals(4, bytes[IHDR_FILTER_METHOD_OFFSET] & 0xff);
     }
 }
