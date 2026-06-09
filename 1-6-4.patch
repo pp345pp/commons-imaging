@@ -1,0 +1,94 @@
+diff --git a/src/main/java/org/apache/commons/imaging/formats/png/PngImagingParameters.java b/src/main/java/org/apache/commons/imaging/formats/png/PngImagingParameters.java
+index af6d4b3a..af0bf201 100644
+--- a/src/main/java/org/apache/commons/imaging/formats/png/PngImagingParameters.java
++++ b/src/main/java/org/apache/commons/imaging/formats/png/PngImagingParameters.java
+@@ -17,6 +17,7 @@ package org.apache.commons.imaging.formats.png;
+ 
+ import java.util.Collections;
+ import java.util.List;
++import java.util.zip.Deflater;
+ 
+ import org.apache.commons.imaging.common.XmpImagingParameters;
+ 
+@@ -30,11 +31,19 @@ public class PngImagingParameters extends XmpImagingParameters<PngImagingParamet
+     /** Default bit depth value. */
+     public static final byte DEFAULT_BIT_DEPTH = 8;
+ 
++    /** Default compression level. */
++    public static final int DEFAULT_COMPRESSION_LEVEL = Deflater.DEFAULT_COMPRESSION;
++
+     /**
+      * Bit depth. Default value is {@literal 8}.
+      */
+     private byte bitDepth = DEFAULT_BIT_DEPTH;
+ 
++    /**
++     * Compression level (0-9). Default value is {@link Deflater#DEFAULT_COMPRESSION}.
++     */
++    private int compressionLevel = DEFAULT_COMPRESSION_LEVEL;
++
+     private boolean forceIndexedColor;
+ 
+     private boolean forceTrueColor;
+@@ -79,6 +88,15 @@ public class PngImagingParameters extends XmpImagingParameters<PngImagingParamet
+         return bitDepth;
+     }
+ 
++    /**
++     * Gets the compression level.
++     *
++     * @return the compression level.
++     */
++    public int getCompressionLevel() {
++        return compressionLevel;
++    }
++
+     /**
+      * Gets the physical scale.
+      *
+@@ -135,6 +153,22 @@ public class PngImagingParameters extends XmpImagingParameters<PngImagingParamet
+         return asThis();
+     }
+ 
++    /**
++     * Sets the compression level. Valid values are 0 through 9, where 0 is no compression and 9 is maximum compression.
++     * {@link java.util.zip.Deflater#DEFAULT_COMPRESSION} is also accepted.
++     *
++     * @param compressionLevel the compression level (0-9 or {@link java.util.zip.Deflater#DEFAULT_COMPRESSION}).
++     * @return this instance.
++     * @throws IllegalArgumentException if the compression level is not valid.
++     */
++    public PngImagingParameters setCompressionLevel(final int compressionLevel) {
++        if (compressionLevel != Deflater.DEFAULT_COMPRESSION && (compressionLevel < Deflater.NO_COMPRESSION || compressionLevel > Deflater.BEST_COMPRESSION)) {
++            throw new IllegalArgumentException("Invalid compression level: " + compressionLevel + " (must be 0-9 or DEFAULT_COMPRESSION)");
++        }
++        this.compressionLevel = compressionLevel;
++        return asThis();
++    }
++
+     /**
+      * Sets whether to force indexed color.
+      *
+diff --git a/src/main/java/org/apache/commons/imaging/formats/png/PngWriter.java b/src/main/java/org/apache/commons/imaging/formats/png/PngWriter.java
+index c0f1e057..9870727f 100644
+--- a/src/main/java/org/apache/commons/imaging/formats/png/PngWriter.java
++++ b/src/main/java/org/apache/commons/imaging/formats/png/PngWriter.java
+@@ -313,7 +313,8 @@ public class PngWriter {
+         if (paletteFactory == null) {
+             paletteFactory = new PaletteFactory();
+         }
+-        final int compressionLevel = Deflater.DEFAULT_COMPRESSION;
++        final int compressionLevel = params.getCompressionLevel();
++        final boolean uncompressed = compressionLevel == Deflater.NO_COMPRESSION;
+ 
+         final int width = src.getWidth();
+         final int height = src.getHeight();
+@@ -438,7 +439,7 @@ public class PngWriter {
+             // for non-grayscale, true-color images. This choice is made
+             // out of caution and is not necessarily required by the PNG
+             // spec. We may broaden the use of predictors in future versions.
+-            final boolean usePredictor = params.isPredictorEnabled() && !isGrayscale && palette == null;
++            final boolean usePredictor = !uncompressed && params.isPredictorEnabled() && !isGrayscale && palette == null;
+ 
+             final byte[] uncompressed;
+             if (!usePredictor) {
