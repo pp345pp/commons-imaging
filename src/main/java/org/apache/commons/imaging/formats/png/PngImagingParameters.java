@@ -42,6 +42,11 @@ public class PngImagingParameters extends XmpImagingParameters<PngImagingParamet
     private boolean predictorEnabled;
 
     /**
+     * Filter method. Default value is {@literal 0}.
+     */
+    private int filterMethod = 0;
+
+    /**
      * Used in write operations to indicate the Physical Scale - sCAL.
      *
      * <p>
@@ -77,6 +82,15 @@ public class PngImagingParameters extends XmpImagingParameters<PngImagingParamet
      */
     public byte getBitDepth() {
         return bitDepth;
+    }
+
+    /**
+     * Gets the filter method.
+     *
+     * @return the filter method.
+     */
+    public int getFilterMethod() {
+        return filterMethod;
     }
 
     /**
@@ -132,6 +146,17 @@ public class PngImagingParameters extends XmpImagingParameters<PngImagingParamet
      */
     public PngImagingParameters setBitDepth(final byte bitDepth) {
         this.bitDepth = bitDepth;
+        return asThis();
+    }
+
+    /**
+     * Sets the filter method.
+     *
+     * @param filterMethod the filter method.
+     * @return this instance.
+     */
+    public PngImagingParameters setFilterMethod(final int filterMethod) {
+        this.filterMethod = filterMethod;
         return asThis();
     }
 

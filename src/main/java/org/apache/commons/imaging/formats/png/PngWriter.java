@@ -362,10 +362,13 @@ public class PngWriter {
             // IHDR must be first
 
             final byte compressionMethod = PngConstants.COMPRESSION_TYPE_INFLATE_DEFLATE;
-            final byte filterMethod = PngConstants.FILTER_METHOD_ADAPTIVE;
+            final int filterMethod = params.getFilterMethod();
+            if (filterMethod < 0 || filterMethod > 4) {
+                throw new ImagingException("PNG: unknown FilterMethod: " + filterMethod);
+            }
             final InterlaceMethod interlaceMethod = InterlaceMethod.NONE;
 
-            final ImageHeader imageHeader = new ImageHeader(width, height, bitDepth, pngColorType, compressionMethod, filterMethod, interlaceMethod);
+            final ImageHeader imageHeader = new ImageHeader(width, height, bitDepth, pngColorType, compressionMethod, (byte) filterMethod, interlaceMethod);
 
             writeChunkIHDR(os, imageHeader);
         }
