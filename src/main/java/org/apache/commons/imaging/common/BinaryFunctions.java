@@ -471,6 +471,29 @@ public final class BinaryFunctions {
     }
 
     /**
+     * Computes the CRC-32 value of the given byte array using a self-implemented CRC-32 algorithm (IEEE polynomial
+     * {@code 0xEDB88320}, reflected). This method does not rely on any CRC utility from the Java standard library.
+     *
+     * @param data the byte array whose CRC-32 is to be computed, may be {@code null} or empty.
+     * @return the computed CRC-32 value as a (signed) {@code int}; interpret as unsigned via {@link Integer#toUnsignedLong(int)}
+     *         or {@link Integer#toHexString(int)} if needed. Returns {@code 0} when {@code data} is {@code null} or empty.
+     */
+    public static int readCrc32(final byte[] data) {
+        if (data == null || data.length == 0) {
+            return 0;
+        }
+        int crc = 0xFFFFFFFF;
+        for (final byte b : data) {
+            crc ^= 0xFF & b;
+            for (int i = 0; i < 8; i++) {
+                final int mask = -(crc & 1);
+                crc = crc >>> 1 ^ 0xEDB88320 & mask;
+            }
+        }
+        return ~crc;
+    }
+
+    /**
      * Tests whether a byte array starts with a specified byte sequence.
      *
      * @param buffer the buffer to test.

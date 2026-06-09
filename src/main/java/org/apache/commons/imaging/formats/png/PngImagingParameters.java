@@ -17,7 +17,6 @@ package org.apache.commons.imaging.formats.png;
 
 import java.util.Collections;
 import java.util.List;
-import java.util.zip.Deflater;
 
 import org.apache.commons.imaging.common.XmpImagingParameters;
 
@@ -31,18 +30,10 @@ public class PngImagingParameters extends XmpImagingParameters<PngImagingParamet
     /** Default bit depth value. */
     public static final byte DEFAULT_BIT_DEPTH = 8;
 
-    /** Default compression level. */
-    public static final int DEFAULT_COMPRESSION_LEVEL = Deflater.DEFAULT_COMPRESSION;
-
     /**
      * Bit depth. Default value is {@literal 8}.
      */
     private byte bitDepth = DEFAULT_BIT_DEPTH;
-
-    /**
-     * Compression level (0-9). Default value is {@link Deflater#DEFAULT_COMPRESSION}.
-     */
-    private int compressionLevel = DEFAULT_COMPRESSION_LEVEL;
 
     private boolean forceIndexedColor;
 
@@ -86,15 +77,6 @@ public class PngImagingParameters extends XmpImagingParameters<PngImagingParamet
      */
     public byte getBitDepth() {
         return bitDepth;
-    }
-
-    /**
-     * Gets the compression level.
-     *
-     * @return the compression level.
-     */
-    public int getCompressionLevel() {
-        return compressionLevel;
     }
 
     /**
@@ -150,22 +132,6 @@ public class PngImagingParameters extends XmpImagingParameters<PngImagingParamet
      */
     public PngImagingParameters setBitDepth(final byte bitDepth) {
         this.bitDepth = bitDepth;
-        return asThis();
-    }
-
-    /**
-     * Sets the compression level. Valid values are 0 through 9, where 0 is no compression and 9 is maximum compression.
-     * {@link java.util.zip.Deflater#DEFAULT_COMPRESSION} is also accepted.
-     *
-     * @param compressionLevel the compression level (0-9 or {@link java.util.zip.Deflater#DEFAULT_COMPRESSION}).
-     * @return this instance.
-     * @throws IllegalArgumentException if the compression level is not valid.
-     */
-    public PngImagingParameters setCompressionLevel(final int compressionLevel) {
-        if (compressionLevel != Deflater.DEFAULT_COMPRESSION && (compressionLevel < Deflater.NO_COMPRESSION || compressionLevel > Deflater.BEST_COMPRESSION)) {
-            throw new IllegalArgumentException("Invalid compression level: " + compressionLevel + " (must be 0-9 or DEFAULT_COMPRESSION)");
-        }
-        this.compressionLevel = compressionLevel;
         return asThis();
     }
 

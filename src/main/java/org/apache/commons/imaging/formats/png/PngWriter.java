@@ -313,8 +313,7 @@ public class PngWriter {
         if (paletteFactory == null) {
             paletteFactory = new PaletteFactory();
         }
-        final int compressionLevel = params.getCompressionLevel();
-        final boolean uncompressed = compressionLevel == Deflater.NO_COMPRESSION;
+        final int compressionLevel = Deflater.DEFAULT_COMPRESSION;
 
         final int width = src.getWidth();
         final int height = src.getHeight();
@@ -439,7 +438,7 @@ public class PngWriter {
             // for non-grayscale, true-color images. This choice is made
             // out of caution and is not necessarily required by the PNG
             // spec. We may broaden the use of predictors in future versions.
-            final boolean usePredictor = !uncompressed && params.isPredictorEnabled() && !isGrayscale && palette == null;
+            final boolean usePredictor = params.isPredictorEnabled() && !isGrayscale && palette == null;
 
             final byte[] uncompressed;
             if (!usePredictor) {
