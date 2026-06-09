@@ -28,6 +28,7 @@ import java.io.InputStream;
 import java.io.PrintWriter;
 import java.nio.ByteOrder;
 import java.util.ArrayList;
+import java.util.logging.Logger;
 
 import org.apache.commons.imaging.AbstractImageParser;
 import org.apache.commons.imaging.ImageFormat;
@@ -77,7 +78,7 @@ public class WebPImageParser extends AbstractImageParser<WebPImagingParameters> 
         }
 
         int getOffset() {
-            return SafeOperations.add(sizeCount, 8); // File Header
+            return SafeOperations.add(sizeCount, 8);
         }
 
         AbstractWebPChunk readChunk() throws ImagingException, IOException {
@@ -119,7 +120,7 @@ public class WebPImageParser extends AbstractImageParser<WebPImagingParameters> 
                 }
 
                 sizeCount = SafeOperations.add(sizeCount, chunkSize);
-                return chunk; // NOPMD How can we do this better?
+                return chunk;
             }
 
             if (firstChunk) {
@@ -129,9 +130,28 @@ public class WebPImageParser extends AbstractImageParser<WebPImagingParameters> 
         }
     }
 
+    private static final Logger LOGGER = Logger.getLogger(WebPImageParser.class.getName());
+
     private static final String DEFAULT_EXTENSION = ImageFormats.WEBP.getDefaultExtension();
 
     private static final String[] ACCEPTED_EXTENSIONS = ImageFormats.WEBP.getExtensions();
+
+    private static byte[] normalizeIccProfileBytes(final byte[] bytes) {
+        if (bytes.length < Integer.BYTES) {
+            return bytes;
+        }
+        final long profileSize = (long) (bytes[0] & 0xff) << 24 | (long) (bytes[1] & 0xff) << 16 | (long) (bytes[2] & 0xff) << 8 | bytes[3] & 0xff;
+        if (profileSize == bytes.length) {
+            return bytes;
+        }
+        LOGGER.warning("Ignoring mismatched ICC profile size " + profileSize + " in WebP ICCP chunk; reading " + bytes.length + " bytes until the chunk end.");
+        final byte[] repairedBytes = bytes.clone();
+        repairedBytes[0] = (byte) (bytes.length >>> 24);
+        repairedBytes[1] = (byte) (bytes.length >>> 16);
+        repairedBytes[2] = (byte) (bytes.length >>> 8);
+        repairedBytes[3] = (byte) bytes.length;
+        return repairedBytes;
+    }
 
     /**
      * Reads the file header of WebP file.
@@ -160,7 +180,6 @@ public class WebPImageParser extends AbstractImageParser<WebPImagingParameters> 
      * Constructs a new instance with the big-endian byte order.
      */
     public WebPImageParser() {
-        // empty
     }
 
     @Override
@@ -173,10 +192,6 @@ public class WebPImageParser extends AbstractImageParser<WebPImagingParameters> 
                 throw new ImagingException("No WebP chunks found");
             }
 
-            // TODO: this does not look too risky; a user could craft an image
-            // with millions of chunks, that are really expensive to dump,
-            // but that should result in a large image, where we can short-
-            // -circuit the operation somewhere else - if needed.
             do {
                 chunk.dump(pw, offset);
 
@@ -216,7 +231,7 @@ public class WebPImageParser extends AbstractImageParser<WebPImagingParameters> 
     public byte[] getIccProfileBytes(final ByteSource byteSource, final WebPImagingParameters params) throws ImagingException, IOException {
         try (ChunksReader reader = new ChunksReader(byteSource, WebPChunkType.ICCP)) {
             final AbstractWebPChunk chunk = reader.readChunk();
-            return chunk == null ? null : chunk.getBytes();
+            return chunk == null ? null : normalizeIccProfileBytes(chunk.getBytes());
         }
     }
 

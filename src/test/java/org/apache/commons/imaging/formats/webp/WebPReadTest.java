@@ -16,14 +16,19 @@
  */
 package org.apache.commons.imaging.formats.webp;
 
+import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import java.awt.color.ColorSpace;
+import java.awt.color.ICC_Profile;
+import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 
 import org.apache.commons.imaging.ImageInfo;
 import org.apache.commons.imaging.Imaging;
@@ -40,6 +45,37 @@ import org.junit.jupiter.params.provider.MethodSource;
  * Tests that read WebP images.
  */
 class WebPReadTest extends AbstractWebPTest {
+
+    private static byte[] createWebPWithIccProfile(final byte[] iccProfileBytes) throws IOException {
+        final byte[] vp8xPayload = new byte[10];
+        final ByteArrayOutputStream file = new ByteArrayOutputStream();
+        file.write("WEBP".getBytes(StandardCharsets.US_ASCII));
+        writeChunk(file, "VP8X", vp8xPayload);
+        writeChunk(file, "ICCP", iccProfileBytes);
+
+        final byte[] payload = file.toByteArray();
+        final ByteArrayOutputStream webp = new ByteArrayOutputStream();
+        webp.write("RIFF".getBytes(StandardCharsets.US_ASCII));
+        writeLittleEndianInt(webp, payload.length);
+        webp.write(payload);
+        return webp.toByteArray();
+    }
+
+    private static void writeChunk(final ByteArrayOutputStream os, final String type, final byte[] data) throws IOException {
+        os.write(type.getBytes(StandardCharsets.US_ASCII));
+        writeLittleEndianInt(os, data.length);
+        os.write(data);
+        if ((data.length & 1) != 0) {
+            os.write(0);
+        }
+    }
+
+    private static void writeLittleEndianInt(final ByteArrayOutputStream os, final int value) {
+        os.write(value & 0xff);
+        os.write(value >>> 8 & 0xff);
+        os.write(value >>> 16 & 0xff);
+        os.write(value >>> 24 & 0xff);
+    }
 
     /**
      * Not implemented yet.
@@ -77,12 +113,27 @@ class WebPReadTest extends AbstractWebPTest {
         Debug.debug("imageFile", imageFile);
 
         final ImageMetadata metadata = Imaging.getMetadata(imageFile);
-        assertFalse(metadata instanceof File); // Dummy check to avoid unused warning (it may be null)
+        assertFalse(metadata instanceof File);
 
         final ImageInfo imageInfo = Imaging.getImageInfo(imageFile);
         assertNotNull(imageInfo);
 
         Debug.debug("ICC profile", Imaging.getIccProfileBytes(imageFile));
+    }
+
+    @Test
+    void testRepairsMismatchedIccProfileSizeInWebPChunk() throws Exception {
+        final byte[] iccProfileBytes = ICC_Profile.getInstance(ColorSpace.CS_LINEAR_RGB).getData();
+        final byte[] malformedIccProfileBytes = iccProfileBytes.clone();
+        malformedIccProfileBytes[0] = 0;
+        malformedIccProfileBytes[1] = 0;
+        malformedIccProfileBytes[2] = 0;
+        malformedIccProfileBytes[3] = 1;
+
+        final byte[] webpBytes = createWebPWithIccProfile(malformedIccProfileBytes);
+        final byte[] repairedIccProfileBytes = Imaging.getIccProfileBytes(webpBytes);
+        assertArrayEquals(iccProfileBytes, repairedIccProfileBytes);
+        assertNotNull(Imaging.getIccProfile(webpBytes));
     }
 
     /**
