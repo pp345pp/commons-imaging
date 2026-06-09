@@ -30,6 +30,9 @@ public class PngImagingParameters extends XmpImagingParameters<PngImagingParamet
     /** Default bit depth value. */
     public static final byte DEFAULT_BIT_DEPTH = 8;
 
+    /** Default filter method value. */
+    public static final int DEFAULT_FILTER_METHOD = 0;
+
     /**
      * Bit depth. Default value is {@literal 8}.
      */
@@ -40,6 +43,12 @@ public class PngImagingParameters extends XmpImagingParameters<PngImagingParamet
     private boolean forceTrueColor;
 
     private boolean predictorEnabled;
+
+    /**
+     * PNG filter method. Valid values are 0 (None), 1 (Sub), 2 (Up), 3 (Average), 4 (Paeth).
+     * Default value is {@literal 0}.
+     */
+    private int filterMethod = DEFAULT_FILTER_METHOD;
 
     /**
      * Used in write operations to indicate the Physical Scale - sCAL.
@@ -77,6 +86,15 @@ public class PngImagingParameters extends XmpImagingParameters<PngImagingParamet
      */
     public byte getBitDepth() {
         return bitDepth;
+    }
+
+    /**
+     * Gets the filter method.
+     *
+     * @return the filter method.
+     */
+    public int getFilterMethod() {
+        return filterMethod;
     }
 
     /**
@@ -132,6 +150,17 @@ public class PngImagingParameters extends XmpImagingParameters<PngImagingParamet
      */
     public PngImagingParameters setBitDepth(final byte bitDepth) {
         this.bitDepth = bitDepth;
+        return asThis();
+    }
+
+    /**
+     * Sets the filter method. Valid values are 0 (None), 1 (Sub), 2 (Up), 3 (Average), 4 (Paeth).
+     *
+     * @param filterMethod the filter method (0-4).
+     * @return this instance.
+     */
+    public PngImagingParameters setFilterMethod(final int filterMethod) {
+        this.filterMethod = filterMethod;
         return asThis();
     }
 

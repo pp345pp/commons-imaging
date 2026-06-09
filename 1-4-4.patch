@@ -1,0 +1,78 @@
+diff --git a/src/main/java/org/apache/commons/imaging/formats/png/PngImagingParameters.java b/src/main/java/org/apache/commons/imaging/formats/png/PngImagingParameters.java
+index af6d4b3a..e1e480e9 100644
+--- a/src/main/java/org/apache/commons/imaging/formats/png/PngImagingParameters.java
++++ b/src/main/java/org/apache/commons/imaging/formats/png/PngImagingParameters.java
+@@ -30,6 +30,9 @@ public class PngImagingParameters extends XmpImagingParameters<PngImagingParamet
+     /** Default bit depth value. */
+     public static final byte DEFAULT_BIT_DEPTH = 8;
+ 
++    /** Default filter method value. */
++    public static final int DEFAULT_FILTER_METHOD = 0;
++
+     /**
+      * Bit depth. Default value is {@literal 8}.
+      */
+@@ -41,6 +44,12 @@ public class PngImagingParameters extends XmpImagingParameters<PngImagingParamet
+ 
+     private boolean predictorEnabled;
+ 
++    /**
++     * PNG filter method. Valid values are 0 (None), 1 (Sub), 2 (Up), 3 (Average), 4 (Paeth).
++     * Default value is {@literal 0}.
++     */
++    private int filterMethod = DEFAULT_FILTER_METHOD;
++
+     /**
+      * Used in write operations to indicate the Physical Scale - sCAL.
+      *
+@@ -79,6 +88,15 @@ public class PngImagingParameters extends XmpImagingParameters<PngImagingParamet
+         return bitDepth;
+     }
+ 
++    /**
++     * Gets the filter method.
++     *
++     * @return the filter method.
++     */
++    public int getFilterMethod() {
++        return filterMethod;
++    }
++
+     /**
+      * Gets the physical scale.
+      *
+@@ -135,6 +153,17 @@ public class PngImagingParameters extends XmpImagingParameters<PngImagingParamet
+         return asThis();
+     }
+ 
++    /**
++     * Sets the filter method. Valid values are 0 (None), 1 (Sub), 2 (Up), 3 (Average), 4 (Paeth).
++     *
++     * @param filterMethod the filter method (0-4).
++     * @return this instance.
++     */
++    public PngImagingParameters setFilterMethod(final int filterMethod) {
++        this.filterMethod = filterMethod;
++        return asThis();
++    }
++
+     /**
+      * Sets whether to force indexed color.
+      *
+diff --git a/src/main/java/org/apache/commons/imaging/formats/png/PngWriter.java b/src/main/java/org/apache/commons/imaging/formats/png/PngWriter.java
+index c0f1e057..033a66a8 100644
+--- a/src/main/java/org/apache/commons/imaging/formats/png/PngWriter.java
++++ b/src/main/java/org/apache/commons/imaging/formats/png/PngWriter.java
+@@ -362,7 +362,11 @@ public class PngWriter {
+             // IHDR must be first
+ 
+             final byte compressionMethod = PngConstants.COMPRESSION_TYPE_INFLATE_DEFLATE;
+-            final byte filterMethod = PngConstants.FILTER_METHOD_ADAPTIVE;
++            final int filterMethodParam = params.getFilterMethod();
++            if (filterMethodParam < 0 || filterMethodParam > 4) {
++                throw new ImagingException("PNG filter method must be between 0 and 4: " + filterMethodParam);
++            }
++            final byte filterMethod = (byte) filterMethodParam;
+             final InterlaceMethod interlaceMethod = InterlaceMethod.NONE;
+ 
+             final ImageHeader imageHeader = new ImageHeader(width, height, bitDepth, pngColorType, compressionMethod, filterMethod, interlaceMethod);
