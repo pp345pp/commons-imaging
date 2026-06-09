@@ -231,10 +231,51 @@ public class GifImageParser extends AbstractImageParser<GifImagingParameters> im
 
         final List<GifImageData> imageData = findAllImageData(imageContents);
         final List<BufferedImage> result = Allocator.arrayList(imageData.size());
-        for (final GifImageData id : imageData) {
-            result.add(getBufferedImage(id, imageContents.globalColorTable));
+
+        final int logicalWidth = ghi.logicalScreenWidth;
+        final int logicalHeight = ghi.logicalScreenHeight;
+
+        BufferedImage currentFrame = new BufferedImage(logicalWidth, logicalHeight, BufferedImage.TYPE_INT_ARGB);
+
+        for (int i = 0; i < imageData.size(); i++) {
+            final GifImageData id = imageData.get(i);
+
+            int dispose = 0;
+            if (id.gce != null) {
+                dispose = id.gce.dispose;
+            }
+
+            BufferedImage previousFrame = null;
+            if (dispose == 3) {
+                previousFrame = deepCopyBufferedImage(currentFrame);
+            }
+
+            final BufferedImage delta = getBufferedImage(id, imageContents.globalColorTable);
+
+            final java.awt.Graphics2D g2d = currentFrame.createGraphics();
+            g2d.drawImage(delta, id.descriptor.imageLeftPosition, id.descriptor.imageTopPosition, null);
+            g2d.dispose();
+
+            result.add(deepCopyBufferedImage(currentFrame));
+
+            if (dispose == 2) {
+                final java.awt.Graphics2D g = currentFrame.createGraphics();
+                g.setComposite(java.awt.AlphaComposite.Clear);
+                g.fillRect(id.descriptor.imageLeftPosition, id.descriptor.imageTopPosition,
+                           id.descriptor.imageWidth, id.descriptor.imageHeight);
+                g.dispose();
+            } else if (dispose == 3 && previousFrame != null) {
+                currentFrame = previousFrame;
+            }
         }
         return result;
+    }
+
+    private BufferedImage deepCopyBufferedImage(final BufferedImage src) {
+        final java.awt.image.ColorModel cm = src.getColorModel();
+        final boolean isAlphaPremultiplied = cm.isAlphaPremultiplied();
+        final java.awt.image.WritableRaster raster = src.copyData(null);
+        return new BufferedImage(cm, raster, isAlphaPremultiplied, null);
     }
 
     @Override
@@ -475,8 +516,19 @@ public class GifImageParser extends AbstractImageParser<GifImagingParameters> im
         final List<GifImageData> imageData = findAllImageData(imageContents);
         final List<GifImageMetadataItem> metadataItems = Allocator.arrayList(imageData.size());
         for (final GifImageData id : imageData) {
-            final DisposalMethod disposalMethod = createDisposalMethodFromIntValue(id.gce.dispose);
-            metadataItems.add(new GifImageMetadataItem(id.gce.delay, id.descriptor.imageLeftPosition, id.descriptor.imageTopPosition, disposalMethod));
+            DisposalMethod disposalMethod = DisposalMethod.UNSPECIFIED;
+            int delay = 0;
+            int transparentColorIndex = -1;
+            boolean transparency = false;
+
+            if (id.gce != null) {
+                disposalMethod = createDisposalMethodFromIntValue(id.gce.dispose);
+                delay = id.gce.delay;
+                transparentColorIndex = id.gce.transparentColorIndex;
+                transparency = id.gce.transparency;
+            }
+
+            metadataItems.add(new GifImageMetadataItem(delay, id.descriptor.imageLeftPosition, id.descriptor.imageTopPosition, disposalMethod, transparentColorIndex, transparency));
         }
         return new GifImageMetadata(bhi.logicalScreenWidth, bhi.logicalScreenHeight, metadataItems);
     }

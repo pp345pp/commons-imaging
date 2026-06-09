@@ -27,12 +27,17 @@ public class GifImageMetadataItem implements ImageMetadata.ImageMetadataItem {
     private final int leftPosition;
     private final int topPosition;
     private final DisposalMethod disposalMethod;
+    private final int transparentColorIndex;
+    private final boolean transparency;
 
-    GifImageMetadataItem(final int delay, final int leftPosition, final int topPosition, final DisposalMethod disposalMethod) {
+    GifImageMetadataItem(final int delay, final int leftPosition, final int topPosition, final DisposalMethod disposalMethod,
+                         final int transparentColorIndex, final boolean transparency) {
         this.delay = delay;
         this.leftPosition = leftPosition;
         this.topPosition = topPosition;
         this.disposalMethod = disposalMethod;
+        this.transparentColorIndex = transparentColorIndex;
+        this.transparency = transparency;
     }
 
     /**
@@ -69,6 +74,24 @@ public class GifImageMetadataItem implements ImageMetadata.ImageMetadataItem {
      */
     public int getTopPosition() {
         return topPosition;
+    }
+
+    /**
+     * Gets the transparent color index for this frame.
+     *
+     * @return the transparent color index.
+     */
+    public int getTransparentColorIndex() {
+        return transparentColorIndex;
+    }
+
+    /**
+     * Gets whether this frame has transparency.
+     *
+     * @return true if this frame has transparency.
+     */
+    public boolean hasTransparency() {
+        return transparency;
     }
 
     @Override
