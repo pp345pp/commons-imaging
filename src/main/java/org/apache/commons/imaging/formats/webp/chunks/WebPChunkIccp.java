@@ -16,6 +16,9 @@
  */
 package org.apache.commons.imaging.formats.webp.chunks;
 
+import java.util.logging.Level;
+import java.util.logging.Logger;
+
 import org.apache.commons.imaging.ImagingException;
 
 /**
@@ -37,6 +40,8 @@ import org.apache.commons.imaging.ImagingException;
  */
 public final class WebPChunkIccp extends AbstractWebPChunk {
 
+    private static final Logger LOGGER = Logger.getLogger(WebPChunkIccp.class.getName());
+
     /**
      * Create an ICCP chunk.
      *
@@ -47,5 +52,22 @@ public final class WebPChunkIccp extends AbstractWebPChunk {
      */
     public WebPChunkIccp(final int type, final int size, final byte[] bytes) throws ImagingException {
         super(type, size, bytes);
+    }
+
+    /**
+     * Create an ICCP chunk with lenient size validation.
+     * If the chunk size doesn't match the bytes length, a warning is logged but the chunk is still created.
+     *
+     * @param type  chunk type.
+     * @param size  chunk size.
+     * @param bytes chunk data.
+     */
+    public WebPChunkIccp(final int type, final int size, final byte[] bytes, final boolean lenient) {
+        super(type, size, bytes, lenient);
+        if (size != bytes.length) {
+            LOGGER.log(Level.WARNING, "ICCP chunk size mismatch: declared size {0}, actual bytes length {1}. "
+                    + "Using available data.",
+                    new Object[] { size, bytes.length });
+        }
     }
 }

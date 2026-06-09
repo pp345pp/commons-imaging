@@ -113,7 +113,12 @@ public class WebPImageParser extends AbstractImageParser<WebPImagingParameters> 
                 }
 
                 final byte[] bytes = readBytes("Chunk Payload", is, payloadSize);
-                final AbstractWebPChunk chunk = WebPChunkType.makeChunk(type, payloadSize, bytes);
+                final AbstractWebPChunk chunk;
+                if (type == WebPChunkType.ICCP.value) {
+                    chunk = new WebPChunkIccp(type, payloadSize, bytes, true);
+                } else {
+                    chunk = WebPChunkType.makeChunk(type, payloadSize, bytes);
+                }
                 if (padding) {
                     skipBytes(is, 1);
                 }

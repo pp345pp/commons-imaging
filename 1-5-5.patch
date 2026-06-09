@@ -1,0 +1,84 @@
+diff --git a/src/main/java/org/apache/commons/imaging/formats/webp/WebPImageParser.java b/src/main/java/org/apache/commons/imaging/formats/webp/WebPImageParser.java
+index 0f778dd6..461e875c 100644
+--- a/src/main/java/org/apache/commons/imaging/formats/webp/WebPImageParser.java
++++ b/src/main/java/org/apache/commons/imaging/formats/webp/WebPImageParser.java
+@@ -113,7 +113,12 @@ public class WebPImageParser extends AbstractImageParser<WebPImagingParameters>
+                 }
+ 
+                 final byte[] bytes = readBytes("Chunk Payload", is, payloadSize);
+-                final AbstractWebPChunk chunk = WebPChunkType.makeChunk(type, payloadSize, bytes);
++                final AbstractWebPChunk chunk;
++                if (type == WebPChunkType.ICCP.value) {
++                    chunk = new WebPChunkIccp(type, payloadSize, bytes, true);
++                } else {
++                    chunk = WebPChunkType.makeChunk(type, payloadSize, bytes);
++                }
+                 if (padding) {
+                     skipBytes(is, 1);
+                 }
+diff --git a/src/main/java/org/apache/commons/imaging/formats/webp/chunks/AbstractWebPChunk.java b/src/main/java/org/apache/commons/imaging/formats/webp/chunks/AbstractWebPChunk.java
+index 4c7d0645..6d985d45 100644
+--- a/src/main/java/org/apache/commons/imaging/formats/webp/chunks/AbstractWebPChunk.java
++++ b/src/main/java/org/apache/commons/imaging/formats/webp/chunks/AbstractWebPChunk.java
+@@ -60,7 +60,15 @@ public abstract class AbstractWebPChunk extends BinaryFileParser {
+         this(type, size, bytes, checkArgs(size, bytes));
+     }
+ 
+-    private AbstractWebPChunk(final int type, final int size, final byte[] bytes, final boolean ignored) {
++    /**
++     * Create a new WebP chunk without strict size validation.
++     *
++     * @param type  chunk type.
++     * @param size  chunk size.
++     * @param bytes chunk data.
++     * @param lenient if true, skip size validation.
++     */
++    protected AbstractWebPChunk(final int type, final int size, final byte[] bytes, final boolean lenient) {
+         super(ByteOrder.LITTLE_ENDIAN);
+         this.type = type;
+         this.size = bytes.length;
+diff --git a/src/main/java/org/apache/commons/imaging/formats/webp/chunks/WebPChunkIccp.java b/src/main/java/org/apache/commons/imaging/formats/webp/chunks/WebPChunkIccp.java
+index 17981f54..6169cb18 100644
+--- a/src/main/java/org/apache/commons/imaging/formats/webp/chunks/WebPChunkIccp.java
++++ b/src/main/java/org/apache/commons/imaging/formats/webp/chunks/WebPChunkIccp.java
+@@ -16,6 +16,9 @@
+  */
+ package org.apache.commons.imaging.formats.webp.chunks;
+ 
++import java.util.logging.Level;
++import java.util.logging.Logger;
++
+ import org.apache.commons.imaging.ImagingException;
+ 
+ /**
+@@ -37,6 +40,8 @@ import org.apache.commons.imaging.ImagingException;
+  */
+ public final class WebPChunkIccp extends AbstractWebPChunk {
+ 
++    private static final Logger LOGGER = Logger.getLogger(WebPChunkIccp.class.getName());
++
+     /**
+      * Create an ICCP chunk.
+      *
+@@ -48,4 +53,21 @@ public final class WebPChunkIccp extends AbstractWebPChunk {
+     public WebPChunkIccp(final int type, final int size, final byte[] bytes) throws ImagingException {
+         super(type, size, bytes);
+     }
++
++    /**
++     * Create an ICCP chunk with lenient size validation.
++     * If the chunk size doesn't match the bytes length, a warning is logged but the chunk is still created.
++     *
++     * @param type  chunk type.
++     * @param size  chunk size.
++     * @param bytes chunk data.
++     */
++    public WebPChunkIccp(final int type, final int size, final byte[] bytes, final boolean lenient) {
++        super(type, size, bytes, lenient);
++        if (size != bytes.length) {
++            LOGGER.log(Level.WARNING, "ICCP chunk size mismatch: declared size {0}, actual bytes length {1}. "
++                    + "Using available data.",
++                    new Object[] { size, bytes.length });
++        }
++    }
+ }

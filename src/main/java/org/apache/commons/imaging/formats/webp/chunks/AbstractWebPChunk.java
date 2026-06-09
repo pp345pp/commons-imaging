@@ -60,7 +60,15 @@ public abstract class AbstractWebPChunk extends BinaryFileParser {
         this(type, size, bytes, checkArgs(size, bytes));
     }
 
-    private AbstractWebPChunk(final int type, final int size, final byte[] bytes, final boolean ignored) {
+    /**
+     * Create a new WebP chunk without strict size validation.
+     *
+     * @param type  chunk type.
+     * @param size  chunk size.
+     * @param bytes chunk data.
+     * @param lenient if true, skip size validation.
+     */
+    protected AbstractWebPChunk(final int type, final int size, final byte[] bytes, final boolean lenient) {
         super(ByteOrder.LITTLE_ENDIAN);
         this.type = type;
         this.size = bytes.length;
