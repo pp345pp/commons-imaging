@@ -16,7 +16,9 @@
  */
 package org.apache.commons.imaging.formats.gif;
 
+import java.awt.AlphaComposite;
 import java.awt.Dimension;
+import java.awt.Graphics2D;
 import java.awt.image.BufferedImage;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
@@ -161,28 +163,25 @@ public class GifImageParser extends AbstractImageParser<GifImagingParameters> im
     }
 
     private List<GifImageData> findAllImageData(final GifImageContents imageContents) throws ImagingException {
-        final List<ImageDescriptor> descriptors = findAllBlocks(imageContents.blocks, IMAGE_SEPARATOR);
+        final List<GifImageData> imageData = new ArrayList<>();
+        GraphicControlExtension graphicControlExtension = null;
 
-        if (descriptors.isEmpty()) {
-            throw new ImagingException("GIF: Couldn't read Image Descriptor");
-        }
-
-        final List<GraphicControlExtension> gcExtensions = findAllBlocks(imageContents.blocks, GRAPHIC_CONTROL_EXTENSION);
-
-        if (!gcExtensions.isEmpty() && gcExtensions.size() != descriptors.size()) {
-            throw new ImagingException("GIF: Invalid amount of Graphic Control Extensions");
-        }
-
-        final List<GifImageData> imageData = Allocator.arrayList(descriptors.size());
-        for (int i = 0; i < descriptors.size(); i++) {
-            final ImageDescriptor descriptor = descriptors.get(i);
-            if (descriptor == null) {
-                throw new ImagingException(String.format("GIF: Couldn't read Image Descriptor of image number %d", i));
+        for (final GifBlock block : imageContents.blocks) {
+            if (block.blockCode == GRAPHIC_CONTROL_EXTENSION) {
+                graphicControlExtension = (GraphicControlExtension) block;
+                continue;
+            }
+            if (block.blockCode != IMAGE_SEPARATOR) {
+                continue;
             }
 
-            final GraphicControlExtension gce = gcExtensions.isEmpty() ? null : gcExtensions.get(i);
+            final ImageDescriptor descriptor = (ImageDescriptor) block;
+            imageData.add(new GifImageData(descriptor, graphicControlExtension));
+            graphicControlExtension = null;
+        }
 
-            imageData.add(new GifImageData(descriptor, gce));
+        if (imageData.isEmpty()) {
+            throw new ImagingException("GIF: Couldn't read Image Descriptor");
         }
 
         return imageData;
@@ -198,15 +197,20 @@ public class GifImageParser extends AbstractImageParser<GifImagingParameters> im
     }
 
     private GifImageData findFirstImageData(final GifImageContents imageContents) throws ImagingException {
-        final ImageDescriptor descriptor = (ImageDescriptor) findBlock(imageContents.blocks, IMAGE_SEPARATOR);
+        return findAllImageData(imageContents).get(0);
+    }
 
-        if (descriptor == null) {
-            throw new ImagingException("GIF: Couldn't read Image Descriptor");
-        }
+    private GraphicControlExtension getGraphicControlExtension(final GifImageData imageData) {
+        return imageData.gce == null ? new GraphicControlExtension(GRAPHIC_CONTROL_EXTENSION, 0, 0, false, 0, -1) : imageData.gce;
+    }
 
-        final GraphicControlExtension gce = (GraphicControlExtension) findBlock(imageContents.blocks, GRAPHIC_CONTROL_EXTENSION);
-
-        return new GifImageData(descriptor, gce);
+    private BufferedImage copyBufferedImage(final BufferedImage source) {
+        final BufferedImage copy = new BufferedImage(source.getWidth(), source.getHeight(), BufferedImage.TYPE_INT_ARGB);
+        final Graphics2D graphics = copy.createGraphics();
+        graphics.setComposite(AlphaComposite.Src);
+        graphics.drawImage(source, 0, 0, null);
+        graphics.dispose();
+        return copy;
     }
 
     @Override
@@ -230,9 +234,32 @@ public class GifImageParser extends AbstractImageParser<GifImagingParameters> im
         }
 
         final List<GifImageData> imageData = findAllImageData(imageContents);
+        if (imageData.size() == 1) {
+            final List<BufferedImage> result = Allocator.arrayList(1);
+            result.add(getBufferedImage(imageData.get(0), imageContents.globalColorTable));
+            return result;
+        }
+
         final List<BufferedImage> result = Allocator.arrayList(imageData.size());
+        BufferedImage canvas = new BufferedImage(ghi.logicalScreenWidth, ghi.logicalScreenHeight, BufferedImage.TYPE_INT_ARGB);
         for (final GifImageData id : imageData) {
-            result.add(getBufferedImage(id, imageContents.globalColorTable));
+            final BufferedImage previousCanvas = copyBufferedImage(canvas);
+            final BufferedImage frameImage = getBufferedImage(id, imageContents.globalColorTable);
+            final Graphics2D graphics = canvas.createGraphics();
+            graphics.setComposite(AlphaComposite.SrcOver);
+            graphics.drawImage(frameImage, id.descriptor.imageLeftPosition, id.descriptor.imageTopPosition, null);
+            graphics.dispose();
+            result.add(copyBufferedImage(canvas));
+
+            final DisposalMethod disposalMethod = createDisposalMethodFromIntValue(getGraphicControlExtension(id).dispose);
+            if (disposalMethod == DisposalMethod.RESTORE_TO_BACKGROUND) {
+                final Graphics2D disposalGraphics = canvas.createGraphics();
+                disposalGraphics.setComposite(AlphaComposite.Clear);
+                disposalGraphics.fillRect(id.descriptor.imageLeftPosition, id.descriptor.imageTopPosition, id.descriptor.imageWidth, id.descriptor.imageHeight);
+                disposalGraphics.dispose();
+            } else if (disposalMethod == DisposalMethod.RESTORE_TO_PREVIOUS) {
+                canvas = previousCanvas;
+            }
         }
         return result;
     }
@@ -254,7 +281,7 @@ public class GifImageParser extends AbstractImageParser<GifImagingParameters> im
     private BufferedImage getBufferedImage(final GifImageData imageData, final byte[] globalColorTable)
             throws ImagingException {
         final ImageDescriptor id = imageData.descriptor;
-        final GraphicControlExtension gce = imageData.gce;
+        final GraphicControlExtension gce = getGraphicControlExtension(imageData);
 
         final int width = id.imageWidth;
         final int height = id.imageHeight;
@@ -405,12 +432,8 @@ public class GifImageParser extends AbstractImageParser<GifImagingParameters> im
             throw new ImagingException("GIF: Couldn't read Header");
         }
 
-        final ImageDescriptor id = (ImageDescriptor) findBlock(blocks.blocks, IMAGE_SEPARATOR);
-        if (id == null) {
-            throw new ImagingException("GIF: Couldn't read ImageDescriptor");
-        }
-
-        final GraphicControlExtension gce = (GraphicControlExtension) findBlock(blocks.blocks, GRAPHIC_CONTROL_EXTENSION);
+        final List<GifImageData> imageData = findAllImageData(blocks);
+        final ImageDescriptor id = imageData.get(0).descriptor;
 
         final int height = bhi.logicalScreenHeight;
         final int width = bhi.logicalScreenWidth;
@@ -421,7 +444,7 @@ public class GifImageParser extends AbstractImageParser<GifImagingParameters> im
         final String formatName = "Graphics Interchange Format";
         final String mimeType = "image/gif";
 
-        final int numberOfImages = findAllBlocks(blocks.blocks, IMAGE_SEPARATOR).size();
+        final int numberOfImages = imageData.size();
 
         final boolean progressive = id.interlaceFlag;
 
@@ -434,8 +457,11 @@ public class GifImageParser extends AbstractImageParser<GifImagingParameters> im
                 + (char) blocks.gifHeaderInfo.version3;
 
         boolean transparent = false;
-        if (gce != null && gce.transparency) {
-            transparent = true;
+        for (final GifImageData idWithMetadata : imageData) {
+            if (getGraphicControlExtension(idWithMetadata).transparency) {
+                transparent = true;
+                break;
+            }
         }
 
         final boolean usesPalette = true;
@@ -475,8 +501,11 @@ public class GifImageParser extends AbstractImageParser<GifImagingParameters> im
         final List<GifImageData> imageData = findAllImageData(imageContents);
         final List<GifImageMetadataItem> metadataItems = Allocator.arrayList(imageData.size());
         for (final GifImageData id : imageData) {
-            final DisposalMethod disposalMethod = createDisposalMethodFromIntValue(id.gce.dispose);
-            metadataItems.add(new GifImageMetadataItem(id.gce.delay, id.descriptor.imageLeftPosition, id.descriptor.imageTopPosition, disposalMethod));
+            final GraphicControlExtension graphicControlExtension = getGraphicControlExtension(id);
+            final DisposalMethod disposalMethod = createDisposalMethodFromIntValue(graphicControlExtension.dispose);
+            final int transparentColorIndex = graphicControlExtension.transparency ? graphicControlExtension.transparentColorIndex : -1;
+            metadataItems.add(new GifImageMetadataItem(graphicControlExtension.delay, id.descriptor.imageLeftPosition, id.descriptor.imageTopPosition,
+                    graphicControlExtension.transparency, transparentColorIndex, disposalMethod));
         }
         return new GifImageMetadata(bhi.logicalScreenWidth, bhi.logicalScreenHeight, metadataItems);
     }

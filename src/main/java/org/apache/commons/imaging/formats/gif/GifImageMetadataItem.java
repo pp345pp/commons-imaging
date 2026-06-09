@@ -26,12 +26,21 @@ public class GifImageMetadataItem implements ImageMetadata.ImageMetadataItem {
     private final int delay;
     private final int leftPosition;
     private final int topPosition;
+    private final boolean transparent;
+    private final int transparentColorIndex;
     private final DisposalMethod disposalMethod;
 
     GifImageMetadataItem(final int delay, final int leftPosition, final int topPosition, final DisposalMethod disposalMethod) {
+        this(delay, leftPosition, topPosition, false, -1, disposalMethod);
+    }
+
+    GifImageMetadataItem(final int delay, final int leftPosition, final int topPosition, final boolean transparent, final int transparentColorIndex,
+            final DisposalMethod disposalMethod) {
         this.delay = delay;
         this.leftPosition = leftPosition;
         this.topPosition = topPosition;
+        this.transparent = transparent;
+        this.transparentColorIndex = transparentColorIndex;
         this.disposalMethod = disposalMethod;
     }
 
@@ -71,6 +80,14 @@ public class GifImageMetadataItem implements ImageMetadata.ImageMetadataItem {
         return topPosition;
     }
 
+    public int getTransparentColorIndex() {
+        return transparentColorIndex;
+    }
+
+    public boolean isTransparent() {
+        return transparent;
+    }
+
     @Override
     public String toString(String prefix) {
         prefix = prefix == null ? "" : prefix;
@@ -78,6 +95,8 @@ public class GifImageMetadataItem implements ImageMetadata.ImageMetadataItem {
         result.append(String.format("%sDelay: %d%s", prefix, delay, NEWLINE));
         result.append(String.format("%sLeft position: %d%s", prefix, leftPosition, NEWLINE));
         result.append(String.format("%sTop position: %d%s", prefix, topPosition, NEWLINE));
+        result.append(String.format("%sTransparent: %s%s", prefix, transparent, NEWLINE));
+        result.append(String.format("%sTransparent color index: %d%s", prefix, transparentColorIndex, NEWLINE));
         result.append(String.format("%sDisposal method: %s%s", prefix, disposalMethod, NEWLINE));
         return result.toString();
     }

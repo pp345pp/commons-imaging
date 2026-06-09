@@ -18,6 +18,7 @@
 package org.apache.commons.imaging.formats.gif;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -26,8 +27,16 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import java.awt.image.BufferedImage;
 import java.io.File;
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.Iterator;
 import java.util.List;
 import java.util.stream.Stream;
+
+import javax.imageio.ImageIO;
+import javax.imageio.ImageReader;
+import javax.imageio.metadata.IIOMetadata;
+import javax.imageio.metadata.IIOMetadataNode;
+import javax.imageio.stream.ImageInputStream;
 
 import org.apache.commons.imaging.ImageInfo;
 import org.apache.commons.imaging.Imaging;
@@ -38,8 +47,28 @@ import org.apache.commons.imaging.test.TestResources;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.MethodSource;
+import org.w3c.dom.NodeList;
 
 class GifReadTest extends AbstractGifTest {
+
+    private static final class ImageIoGifFrameMetadata {
+        private final int delay;
+        private final int leftPosition;
+        private final int topPosition;
+        private final boolean transparent;
+        private final int transparentColorIndex;
+        private final DisposalMethod disposalMethod;
+
+        private ImageIoGifFrameMetadata(final int delay, final int leftPosition, final int topPosition, final boolean transparent,
+                final int transparentColorIndex, final DisposalMethod disposalMethod) {
+            this.delay = delay;
+            this.leftPosition = leftPosition;
+            this.topPosition = topPosition;
+            this.transparent = transparent;
+            this.transparentColorIndex = transparentColorIndex;
+            this.disposalMethod = disposalMethod;
+        }
+    }
 
     public static Stream<File> animatedImageData() throws Exception {
         return getAnimatedGifImages().stream();
@@ -58,21 +87,48 @@ class GifReadTest extends AbstractGifTest {
     void testBufferedImage(final File imageFile) throws Exception {
         final BufferedImage image = Imaging.getBufferedImage(imageFile);
         assertNotNull(image);
-        // TODO assert more
     }
 
     @ParameterizedTest
     @MethodSource("animatedImageData")
-    void testBufferedImagesForAnimatedImageGif(final File imageFile) throws Exception {
+    void testAnimatedGifMetadataMatchesImageIo(final File imageFile) throws Exception {
         final List<BufferedImage> images = Imaging.getAllBufferedImages(imageFile);
+        final GifImageMetadata metadata = (GifImageMetadata) Imaging.getMetadata(imageFile);
+        final List<ImageIoGifFrameMetadata> expectedFrames = getImageIoGifFrameMetadata(imageFile);
+
+        assertEquals(expectedFrames.size(), images.size());
+        assertEquals(expectedFrames.size(), metadata.getItems().size());
+
+        for (int i = 0; i < expectedFrames.size(); i++) {
+            final ImageIoGifFrameMetadata expectedFrame = expectedFrames.get(i);
+            final GifImageMetadataItem actualFrame = metadata.getItems().get(i);
+            assertEquals(expectedFrame.delay, actualFrame.getDelay());
+            assertEquals(expectedFrame.leftPosition, actualFrame.getLeftPosition());
+            assertEquals(expectedFrame.topPosition, actualFrame.getTopPosition());
+            assertEquals(expectedFrame.transparent, actualFrame.isTransparent());
+            assertEquals(expectedFrame.transparentColorIndex, actualFrame.getTransparentColorIndex());
+            assertEquals(expectedFrame.disposalMethod, actualFrame.getDisposalMethod());
+        }
+    }
+
+    @Test
+    void testAnimatedGifReturnsDifferentFirstAndLastFrames() throws Exception {
+        final File imageFile = TestResources.resourceToFile("/images/gif/animated/1/animated.gif");
+        final List<BufferedImage> images = Imaging.getAllBufferedImages(imageFile);
+        final List<ImageIoGifFrameMetadata> expectedFrames = getImageIoGifFrameMetadata(imageFile);
+
+        assertEquals(expectedFrames.size(), images.size());
         assertTrue(images.size() > 1);
+        assertTrue(imagesDiffer(images.get(0), images.get(images.size() - 1)));
     }
 
     @ParameterizedTest
     @MethodSource("singleImageData")
     void testBufferedImagesForSingleImageGif(final File imageFile) throws Exception {
+        final BufferedImage image = Imaging.getBufferedImage(imageFile);
         final List<BufferedImage> images = Imaging.getAllBufferedImages(imageFile);
         assertEquals(1, images.size());
+        assertFalse(imagesDiffer(image, images.get(0)));
     }
 
     @Test
@@ -103,7 +159,7 @@ class GifReadTest extends AbstractGifTest {
     @Test
     void testCreateMetadataWithDisposalMethods() {
         for (final DisposalMethod disposalMethod : DisposalMethod.values()) {
-            final GifImageMetadataItem metadataItem = new GifImageMetadataItem(0, 0, 0, disposalMethod);
+            final GifImageMetadataItem metadataItem = new GifImageMetadataItem(0, 0, 0, false, -1, disposalMethod);
             assertEquals(disposalMethod, metadataItem.getDisposalMethod());
         }
     }
@@ -115,21 +171,20 @@ class GifReadTest extends AbstractGifTest {
         final GifImageMetadata metadata = (GifImageMetadata) Imaging.getMetadata(imageFile);
         final List<BufferedImage> images = Imaging.getAllBufferedImages(imageFile);
 
-        int width = 0;
-        int height = 0;
-        for (int i = 0; i < images.size(); i++) {
-            final BufferedImage image = images.get(i);
-            final GifImageMetadataItem metadataItem = metadata.getItems().get(i);
-            final int xOffset = metadataItem.getLeftPosition();
-            final int yOffset = metadataItem.getTopPosition();
-            width = Math.max(width, image.getWidth() + xOffset);
-            height = Math.max(height, image.getHeight() + yOffset);
+        if (images.size() == 1) {
+            final BufferedImage image = images.get(0);
+            final GifImageMetadataItem metadataItem = metadata.getItems().get(0);
+            assertEquals(metadata.getWidth(), image.getWidth() + metadataItem.getLeftPosition());
+            assertEquals(metadata.getHeight(), image.getHeight() + metadataItem.getTopPosition());
+        } else {
+            for (final BufferedImage image : images) {
+                assertEquals(metadata.getWidth(), image.getWidth());
+                assertEquals(metadata.getHeight(), image.getHeight());
+            }
         }
 
-        assertEquals(width, metadata.getWidth());
-        assertEquals(height, metadata.getHeight());
-        assertEquals(width, imageInfo.getWidth());
-        assertEquals(height, imageInfo.getHeight());
+        assertEquals(metadata.getWidth(), imageInfo.getWidth());
+        assertEquals(metadata.getHeight(), imageInfo.getHeight());
     }
 
     @ParameterizedTest
@@ -137,7 +192,6 @@ class GifReadTest extends AbstractGifTest {
     void testImageInfo(final File imageFile) throws Exception {
         final ImageInfo imageInfo = Imaging.getImageInfo(imageFile);
         assertNotNull(imageInfo);
-        // TODO assert more
     }
 
     @ParameterizedTest
@@ -149,6 +203,86 @@ class GifReadTest extends AbstractGifTest {
         assertTrue(((GifImageMetadata) metadata).getWidth() > 0);
         assertTrue(((GifImageMetadata) metadata).getHeight() > 0);
         assertNotNull(metadata.getItems());
+    }
+
+    private List<ImageIoGifFrameMetadata> getImageIoGifFrameMetadata(final File imageFile) throws IOException, ImagingException {
+        final Iterator<ImageReader> readers = ImageIO.getImageReadersByFormatName("gif");
+        assertTrue(readers.hasNext());
+
+        try (ImageInputStream imageInputStream = ImageIO.createImageInputStream(imageFile)) {
+            final ImageReader reader = readers.next();
+            try {
+                reader.setInput(imageInputStream, false, false);
+                final int frameCount = reader.getNumImages(true);
+                final List<ImageIoGifFrameMetadata> metadata = new ArrayList<>(frameCount);
+                for (int i = 0; i < frameCount; i++) {
+                    metadata.add(readImageIoFrameMetadata(reader, i));
+                }
+                return metadata;
+            } finally {
+                reader.dispose();
+            }
+        }
+    }
+
+    private IIOMetadataNode getRequiredNode(final IIOMetadataNode root, final String nodeName) throws ImagingException {
+        final NodeList nodes = root.getElementsByTagName(nodeName);
+        if (nodes.getLength() == 0) {
+            throw new ImagingException("Missing GIF metadata node: " + nodeName);
+        }
+        return (IIOMetadataNode) nodes.item(0);
+    }
+
+    private boolean imagesDiffer(final BufferedImage firstImage, final BufferedImage secondImage) {
+        if (firstImage.getWidth() != secondImage.getWidth() || firstImage.getHeight() != secondImage.getHeight()) {
+            return true;
+        }
+        for (int y = 0; y < firstImage.getHeight(); y++) {
+            for (int x = 0; x < firstImage.getWidth(); x++) {
+                if (firstImage.getRGB(x, y) != secondImage.getRGB(x, y)) {
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+
+    private int parseIntAttribute(final IIOMetadataNode node, final String attributeName) {
+        return Integer.parseInt(node.getAttribute(attributeName));
+    }
+
+    private ImageIoGifFrameMetadata readImageIoFrameMetadata(final ImageReader reader, final int imageIndex) throws IOException, ImagingException {
+        final IIOMetadata metadata = reader.getImageMetadata(imageIndex);
+        final IIOMetadataNode root = (IIOMetadataNode) metadata.getAsTree(metadata.getNativeMetadataFormatName());
+        final IIOMetadataNode graphicControlExtension = getRequiredNode(root, "GraphicControlExtension");
+        final IIOMetadataNode imageDescriptor = getRequiredNode(root, "ImageDescriptor");
+
+        final int delay = parseIntAttribute(graphicControlExtension, "delayTime");
+        final int leftPosition = parseIntAttribute(imageDescriptor, "imageLeftPosition");
+        final int topPosition = parseIntAttribute(imageDescriptor, "imageTopPosition");
+        final boolean transparent = Boolean.parseBoolean(graphicControlExtension.getAttribute("transparentColorFlag"));
+        final int transparentColorIndex = transparent ? parseIntAttribute(graphicControlExtension, "transparentColorIndex") : -1;
+        final DisposalMethod disposalMethod = toDisposalMethod(graphicControlExtension.getAttribute("disposalMethod"));
+
+        return new ImageIoGifFrameMetadata(delay, leftPosition, topPosition, transparent, transparentColorIndex, disposalMethod);
+    }
+
+    private DisposalMethod toDisposalMethod(final String disposalMethod) throws ImagingException {
+        switch (disposalMethod) {
+        case "none":
+            return DisposalMethod.UNSPECIFIED;
+        case "doNotDispose":
+            return DisposalMethod.DO_NOT_DISPOSE;
+        case "restoreToBackgroundColor":
+            return DisposalMethod.RESTORE_TO_BACKGROUND;
+        case "restoreToPrevious":
+            return DisposalMethod.RESTORE_TO_PREVIOUS;
+        default:
+            if (disposalMethod.startsWith("undefinedDisposalMethod")) {
+                return GifImageParser.createDisposalMethodFromIntValue(Integer.parseInt(disposalMethod.substring("undefinedDisposalMethod".length())));
+            }
+            throw new ImagingException("Unexpected GIF disposal method: " + disposalMethod);
+        }
     }
 
     /**
