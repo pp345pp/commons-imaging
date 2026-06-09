@@ -30,10 +30,18 @@ public class PngImagingParameters extends XmpImagingParameters<PngImagingParamet
     /** Default bit depth value. */
     public static final byte DEFAULT_BIT_DEPTH = 8;
 
+    /** Default filter method value. */
+    public static final int DEFAULT_FILTER_METHOD = 0;
+
     /**
      * Bit depth. Default value is {@literal 8}.
      */
     private byte bitDepth = DEFAULT_BIT_DEPTH;
+
+    /**
+     * Filter method. Valid values are 0 through 4. Default value is {@literal 0}.
+     */
+    private int filterMethod = DEFAULT_FILTER_METHOD;
 
     private boolean forceIndexedColor;
 
@@ -77,6 +85,15 @@ public class PngImagingParameters extends XmpImagingParameters<PngImagingParamet
      */
     public byte getBitDepth() {
         return bitDepth;
+    }
+
+    /**
+     * Gets the filter method.
+     *
+     * @return the filter method.
+     */
+    public int getFilterMethod() {
+        return filterMethod;
     }
 
     /**
@@ -132,6 +149,17 @@ public class PngImagingParameters extends XmpImagingParameters<PngImagingParamet
      */
     public PngImagingParameters setBitDepth(final byte bitDepth) {
         this.bitDepth = bitDepth;
+        return asThis();
+    }
+
+    /**
+     * Sets the filter method. Valid values are 0 through 4.
+     *
+     * @param filterMethod the filter method.
+     * @return this instance.
+     */
+    public PngImagingParameters setFilterMethod(final int filterMethod) {
+        this.filterMethod = filterMethod;
         return asThis();
     }
 
